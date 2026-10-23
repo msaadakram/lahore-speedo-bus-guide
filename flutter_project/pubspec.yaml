@@ -1,0 +1,55 @@
+name: lahore_speedo_bus_guide
+description: "Lahore Speedo Bus Guide — faithful Flutter rebuild of the original React Native application."
+publish_to: 'none'
+
+version: 2.1.0+12
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Local storage (AsyncStorage equivalent, key: themePreference)
+  shared_preferences: ^2.3.3
+
+  # Location (react-native-geolocation-service equivalent)
+  geolocator: ^13.0.2
+
+  # Maps (react-native-maps equivalent; OSM tiles, no API key required)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # External intents (react-native Linking / share equivalent)
+  url_launcher: ^6.3.1
+  share_plus: ^10.1.2
+
+  # Optional network path for feedback (Firestore REST). See .env.example.
+  http: ^1.2.2
+
+  # Utilities
+  collection: ^1.19.0
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/data/
+
+  fonts:
+    - family: AppIcons
+      fonts:
+        - asset: assets/fonts/material_community_icons.ttf

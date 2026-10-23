@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Recovered from theme.ts (COLORS.background = #F5F7FA light,
+         DARK_COLORS.background = #121212 dark). -->
+    <color name="window_background">#F5F7FA</color>
+    <color name="ic_launcher_background">#FC3B38</color>
+</resources>

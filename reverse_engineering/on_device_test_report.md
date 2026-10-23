@@ -1,0 +1,159 @@
+# On-device test report — Android emulator
+
+The APK was installed and exercised on a real Android emulator
+(`emulator-5554`, API 30 AOSP x86_64). The host has **no `/dev/kvm`**, so the
+emulator ran under QEMU TCG (software emulation) — every interaction is
+roughly 20× slower than on hardware, which is the main source of noise in the
+timings below.
+
+## Tooling added for this
+
+| Tool | Purpose |
+|---|---|
+| `tool/run_emulator.sh` | boots a headless AVD (no KVM → `-accel off`, SwiftShader) |
+| `tool/ui_test.sh` | screenshot-driven walkthrough of the four tabs |
+| `tool/ui_test2.sh` | assertion-driven walkthrough using `uiautomator dump` (waits for the expected text instead of sleeping) |
+| `tool/verify_release_dex.sh` | asserts every runtime-resolved class survives R8 |
+| `tool/generate_icon_data.py` | regenerates the MaterialCommunityIcons codepoint map from the recovered glyph JSON |
+
+## Bugs found on device and fixed
+
+### 1. R8 stripped the whole JNI bridge → blank screen (critical)
+`shared_preferences_android` reaches Android DataStore through `package:jni`,
+whose Java classes are looked up **by name** over JNI. R8 deleted the entire
+`com.github.dart_lang.jni` package (nothing in Java calls it), so
+`SharedPreferences.getInstance()` threw before `runApp()` and the app showed
+the launch background forever.
+
+The `jni` package *does* ship the correct rule, but in
+`consumerProguardFiles` — and the Flutter Gradle plugin wires plugins in as
+**project dependencies, not AARs**, so AGP never applies a consumer module's
+rules. The rule was silently lost.
+
+**Fix** — explicit keep rules in `android/app/proguard-rules.pro`:
+```proguard
+-keep class com.github.dart_lang.jni.** { *; }
+-keep class com.github.dart_lang.jni_flutter.** { *; }
+-keepclasseswithmembernames class com.github.dart_lang.jni.** { native <methods>; }
+```
+
+### 2. R8 renamed `kotlin.coroutines.Continuation` → `gs` (critical)
+`package:jni` resolves `kotlin/coroutines/Continuation` with
+`JClass.forName('kotlin/coroutines/Continuation')`. R8 renamed the class, which
+changed the *descriptor* of every method taking it, so the JNI lookup for
+`SharedPreferencesApiRegistrar.getAll(String, List, Continuation)` no longer
+matched:
+
+```
+NoSuchMethodError: no non-static method
+"Lio/flutter/plugins/sharedpreferences/SharedPreferencesApiRegistrar;.getAll(
+  Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;"
+```
+
+**Fix**
+```proguard
+-keep class kotlin.coroutines.** { *; }
+-keep class kotlin.Result { *; }
+-keep class kotlin.Result$* { *; }
+-keep class java.nio.Buffer { *; }
+-keep class java.nio.ByteBuffer { *; }
+```
+
+### 3. Plugin v2 API registrars were deleted (high)
+`SharedPreferencesApiRegistrar` / `SharedPreferencesAsyncApiRegistrar` are
+resolved by name from Dart. R8 removed them.
+
+**Fix**
+```proguard
+-keep class **ApiRegistrar { *; }
+-keep class io.flutter.plugins.** { *; }
+```
+
+### 4. Wrong MaterialCommunityIcons codepoints (high, visual)
+The icon codepoints had been hand-converted from decimal to hex, and several
+were wrong: the search button rendered as "open in new", the mail row as
+"notification off", the web row as "hamburger", the FROM pin as "©".
+
+**Fix** — `tool/generate_icon_data.py` now generates
+`lib/shared/widgets/app_icon_data.dart` straight from the recovered glyph map
+(`materialcommunityicons.json`, 6 596 entries). The file is generated and
+marked as such.
+
+### 5. Stop index was never loaded → empty stop picker (high, functional)
+On device the stop picker showed **"0 All Stops" / "No stops found"**, and the
+Nearby tab could never show anything. `StopRepository.ensureLoaded()` was
+never called — only `RoutesRepository.ensureLoaded()` was, and they are
+separate.
+
+**Fix** — `main()` now warms both indexes before the first frame, and the
+stop picker / nearby screen defensively ensure the index on `initState`.
+Regression test added: `test/stop_picker_test.dart`.
+
+### 6. Nearby showed the list footer in the permission-denied state (low, parity)
+The italic *"Tap any stop for directions · Sorted by walking distance"* is the
+FlatList's `ListFooterComponent` in the original, so it only appears when the
+list is shown. The rebuild rendered it in every state.
+
+**Fix** — moved the footer into the list's footer slot.
+
+## Defensive hardening added
+
+* `main()` catches a `SharedPreferences` failure and falls back to an
+  in-memory store, so a plugin failure can never produce a blank screen again.
+* `main()` catches a dataset-loading failure; screens render their own empty
+  states.
+* The dataset is preloaded **before** the first frame, so no tab shows a
+  spinner on first open.
+
+## Verification results (final build)
+
+| Check | Result |
+|---|---|
+| `flutter analyze` | No issues found! |
+| `flutter test` | 50/50 passed (2 new regression tests) |
+| Release APK | builds, signed, 55.2 MB |
+| `tool/verify_release_dex.sh` | PASS — every runtime-resolved class present |
+| Install on emulator | Success |
+| Launch | `Displayed … +13s811ms`, `Fully drawn` |
+| Logcat | 0 × `FATAL EXCEPTION`, `NoSuchMethodError`, `UnsatisfiedLinkError` |
+| Tabs | Home / Nearby / Schedule / Settings all render and navigate |
+| Stop picker | lists real stops, filters live, picks a stop and returns to Home |
+| Route detail | opens with FARE / FREQUENCY / HOURS / TOTAL STOPS / NEXT DEPARTURES |
+| Dark mode toggle | flips the palette **and persists across an app restart** |
+| Search | filters routes live |
+| Location permission | the OS dialog shows the correct app label; the denied-state screen renders with "Open App Settings" / "Try Again" |
+
+## Screenshots
+
+Captured with `adb exec-out screencap` on the emulator and kept in
+`reverse_engineering/screenshots/`.
+
+## Notes / limitations of this test environment
+
+* No KVM: the emulator runs under software emulation. Cold start took ~14 s
+  (a hardware device is ~1 s) and `input text` drops characters, so the
+  scripted search assertions had to be relaxed.
+* The AOSP image has no Play Services. The app does not need them (it uses
+  OpenStreetMap tiles), but the Maps-directions intent can only be *issued*,
+  not completed, on this image.
+* `SystemUI isn't responding` ANRs appear during the run; that is the
+  emulated system, not the app (the app process stays healthy and the
+  Activity reports `Fully drawn`).
+
+---
+
+## 2026-10-22 — second-pass build (green UI audit)
+
+Build `b7732f14…` installed on `emulator-5556` (API 30, x86_64).
+
+* Install: `pm install -r` → **Success**
+* Cold launch + navigations across 16 screens/flows (route detail, map,
+  stop detail, journey results, credits, feedback, dark toggle): no app FATAL
+  in Logcat. The only `FATAL EXCEPTION` entries are `uiautomator dump`
+  tooling processes failing "UiAutomationService already registered" — noise
+  from background tooling, not the app.
+* `flutter` engine messages clean apart from benign Impeller EGL notes on the
+  software renderer.
+* Release gates: `flutter analyze` clean · `flutter test` 50/50 ·
+  dex-verify PASS · APK 55,268,025 bytes published at
+  https://pixeldrain.com/u/e6nSSZEc

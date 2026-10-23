@@ -1,0 +1,19 @@
+# Build output & local artifacts (never commit binaries)
+artifacts/
+downloads/
+*.apk
+*.aab
+pC5WZ8Hc.apk
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Reverse-engineering scratch space (raw decoded APK output — analysis results live in the reports)
+reverse_engineering/work/
+reverse_engineering/hermes/
+
+# Local dev tooling config
+flutter_project/.config/

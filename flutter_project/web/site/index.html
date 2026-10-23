@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lahore Speedo Bus Guide — routes, stops and schedules</title>
+    <meta
+      name="description"
+      content="Official support site for Lahore Speedo Bus Guide — the offline companion for the Lahore bus network. Privacy policy, contact and more projects by Muhammad Saad."
+    />
+    <meta name="theme-color" content="#3B7306" />
+    <link rel="canonical" href="https://lahore-speedo-bus-guide.pages.dev/" />
+    <style>
+      :root {
+        --primary: #3b7306;
+        --accent: #83a034;
+        --surface: #f7f8ef;
+        --text: #1d2b12;
+        --muted: #5c6b4d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: var(--text);
+        background: var(--surface);
+      }
+      header {
+        background: linear-gradient(135deg, #2e5a05 0%, var(--accent) 100%);
+        color: #fff;
+        padding: 48px 24px 40px;
+        text-align: center;
+      }
+      header h1 { margin: 0 0 8px; font-size: 28px; }
+      header p { margin: 0 auto; max-width: 560px; opacity: 0.92; line-height: 1.55; }
+      main { max-width: 720px; margin: 0 auto; padding: 32px 24px 64px; }
+      .cards { display: grid; gap: 16px; }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e6d8;
+        border-radius: 18px;
+        padding: 24px;
+      }
+      .card h2 { margin: 0 0 6px; font-size: 18px; color: var(--primary); }
+      .card p { margin: 0; color: var(--muted); line-height: 1.6; }
+      .card a {
+        color: var(--primary);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .card a:hover { text-decoration: underline; }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 24px 12px 48px;
+      }
+      footer a { color: var(--primary); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Lahore Speedo Bus Guide</h1>
+      <p>
+        Every route, one tap away — the offline companion for Speedo, Metro,
+        Electric and Orange Line buses in Lahore.
+      </p>
+    </header>
+    <main>
+      <div class="cards">
+        <div class="card">
+          <h2>Privacy Policy</h2>
+          <p>
+            The app collects no personal data — no accounts, no analytics, no
+            ads. Read the full policy at
+            <a href="/privacy.html">/privacy.html</a>.
+          </p>
+        </div>
+        <div class="card">
+          <h2>Contact &amp; Support</h2>
+          <p>
+            Email the developer directly:
+            <a href="mailto:msaadakram786@gmail.com">msaadakram786@gmail.com</a>
+          </p>
+        </div>
+        <div class="card">
+          <h2>More projects</h2>
+          <p>
+            Find more Flutter and web work at
+            <a href="https://msaadakram.me" rel="noopener">msaadakram.me</a>.
+          </p>
+        </div>
+      </div>
+    </main>
+    <footer>
+      Built by <a href="https://msaadakram.me" rel="noopener">Muhammad Saad</a>
+      · data from Punjab Mass Transit Authority
+    </footer>
+  </body>
+</html>

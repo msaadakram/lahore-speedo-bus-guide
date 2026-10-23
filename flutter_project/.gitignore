@@ -1,0 +1,28 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+*.iml
+.idea/
+.vscode/
+*.log
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# Environment configuration (never commit real values)
+.env
+
+# Signing — never commit release credentials or the keystore.
+android/key.properties
+android/*.jks
+android/keystore/
+*.keystore
+*.jks
