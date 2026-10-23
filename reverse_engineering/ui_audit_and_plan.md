@@ -127,6 +127,27 @@ the dialer), so the audit switched to a deterministic harness:
   `b7732f142b8f21e67c344a307a7aafd32abd035f292bf6e4cf70b9cf3fac8b52`
 * Download: https://pixeldrain.com/u/e6nSSZEc
 
+## Pass 3 — branding, credits & privacy (2026-10-23)
+
+Contact/ownership rebrand plus a first-class legal page:
+
+* **Settings** — website/email/More-Apps constants now point to
+  `msaadakram.me` / `msaadakram786@gmail.com`; `Privacy Policy` row moved
+  from an external `$website/privacy` link to the in-app route
+  `Routes.privacyPolicy`.
+* **Credits** — rewritten to a single `_CreditCard` for **Muhammad Saad**
+  (MS avatar, `DEVELOPER & MAINTAINER`, tags *Flutter Apps / Routing & Data /
+  More projects on msaadakram.me*, CTA `Visit msaadakram.me`).
+* **New `PrivacyPolicyScreen`** (`lib/features/privacy/privacy_screen.dart`) —
+  9-card policy (data simplicity, location, OSM tiles, bus data, feedback,
+  children, links, changes, contact) in the brand style; openable offline.
+* **Web** — `web/site/` (landing + full policy) deployed to Cloudflare
+  Pages: https://lahore-speedo-bus-guide.pages.dev (and `/privacy`).
+
+Build: SHA-256 `e106ad99…`, https://pixeldrain.com/u/fRKt8uFb · code at
+https://github.com/msaadakram/lahore-speedo-bus-guide · device verification
+in `on_device_test_report.md` (2026-10-23 entry).
+
 ## Notes for the next pass
 
 * Golden text renders as tofu in the test host (no fonts loaded) — if you want
@@ -134,3 +155,5 @@ the dialer), so the audit switched to a deterministic harness:
 * The dark theme is verified through the goldens and the palette toggle unit
   test; capturing dark screens on the device fights the emulator's search for
   a default launcher icon (coordinates shift), so it is skipped here.
+* `msaadakram.me` hosting was answering "This deployment is temporarily
+  paused" on 2026-10-23; resume it so Settings/Credits links land somewhere.

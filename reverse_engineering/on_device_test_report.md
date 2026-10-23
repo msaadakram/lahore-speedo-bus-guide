@@ -157,3 +157,34 @@ Build `b7732f14…` installed on `emulator-5556` (API 30, x86_64).
 * Release gates: `flutter analyze` clean · `flutter test` 50/50 ·
   dex-verify PASS · APK 55,268,025 bytes published at
   https://pixeldrain.com/u/e6nSSZEc
+
+---
+
+## 2026-10-23 — branding / privacy release
+
+Build `e106ad99…` installed on `emulator-5554` (fresh AVD `apkx-iso`,
+API 30, x86_64, 1080×1920).
+
+Changes under test:
+
+* Settings contact rebrand — `Email Support` → `mailto:msaadakram786@gmail.com`,
+  `Visit our Website` / `More Apps` → `https://msaadakram.me`
+* Credits rewritten to a single card: **Muhammad Saad** —
+  `DEVELOPER & MAINTAINER`, tags *Flutter Apps / Routing & Data / More
+  projects on msaadakram.me*, CTA `Visit msaadakram.me`
+* New in-app **Privacy Policy** screen (`Settings → Legal`), no external
+  dependency; mirrored web copy served by Cloudflare Pages
+  (`https://lahore-speedo-bus-guide.pages.dev/privacy`)
+
+Verification: cold launch OK; Settings→Privacy Policy renders all 9 sections
+with tappable `msaadakram786@gmail.com` / `msaadakram.me` links; Credits card
+correct; `Visit msaadakram.me` opens the correct URL in a browser. Zero app
+FATAL / ANR entries in Logcat. Release gates: `flutter analyze` clean ·
+`flutter test` 50/50 · dex-verify PASS · APK 55,268,025 bytes,
+SHA-256 `e106ad99c960d4895819db1727d953f997605a2c2cf37920eeb52dc7827b485d`,
+published at https://pixeldrain.com/u/fRKt8uFb
+
+Note: `msaadakram.me` currently answers **“This deployment is temporarily
+paused”** at its host — the app links are correct, but the developer needs to
+resume/re-publish that hosting for the pages to load.
+Code: https://github.com/msaadakram/lahore-speedo-bus-guide
