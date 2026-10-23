@@ -17,3 +17,6 @@ reverse_engineering/hermes/
 
 # Local dev tooling config
 flutter_project/.config/
+
+# Wrangler local state
+.wrangler/
