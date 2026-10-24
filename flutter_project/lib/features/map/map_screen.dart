@@ -225,7 +225,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             : 'https://server.arcgisonline.com/ArcGIS/rest/services/'
                                   'World_Imagery/MapServer/tile/{z}/{y}/{x}',
                         userAgentPackageName:
-                            'com.msaadakram.lahorebus',
+                            'com.lahorebus',
                         maxZoom: 18,
                       ),
                       if (stops.length > 1)

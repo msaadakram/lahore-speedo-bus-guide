@@ -1,4 +1,4 @@
-package com.msaadakram.lahorebus
+package com.lahorebus
 
 import io.flutter.embedding.android.FlutterActivity
 

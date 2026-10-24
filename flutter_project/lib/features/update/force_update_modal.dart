@@ -20,7 +20,7 @@ class ForceUpdateModal extends StatelessWidget {
   final VoidCallback onUpdate;
   final String? storeVersion;
 
-  static const _packageId = 'com.msaadakram.lahorebus';
+  static const _packageId = 'com.lahorebus';
 
   @override
   Widget build(BuildContext context) {

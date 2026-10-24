@@ -222,3 +222,17 @@ answers 404 (package id is free). Release gates re-run after the rename:
 Known UI follow-up found while shooting store screenshots: the route-detail
 stat tiles (`StatBox`) are 4-up `Expanded` and ellipsize long values
 (“Every 9 min”, “06:00 AM – 10:30 PM”) at ≤411 dp. Fix before the next update.
+
+---
+
+## 2026-10-24 — package reissued as com.lahorebus (Play Console listing)
+
+Play Console draft app was created with package name `com.lahorebus`, so the
+bundle identity had to match exactly (Play rejects any other applicationId for
+that listing). App identity moved `com.msaadakram.lahorebus` →
+**`com.lahorebus`**: `applicationId`/`namespace`, `MainActivity` relocated to
+`android/app/src/main/kotlin/com/lahorebus/`, Dart refs (`_packageId`,
+OSM `userAgentPackageName`) and docs updated. Signing key, version 2.1.0 (12)
+and all app code are unchanged.
+
+`com.lahorebus` is unused on Play (listing URL 404) at the time of the rename.

@@ -1,6 +1,6 @@
 # Play Store listing copy — Lahore Speedo Bus Guide
 
-Package: `com.msaadakram.lahorebus` · Version: `2.1.0` (`versionCode 12`)
+Package: `com.lahorebus` · Version: `2.1.0` (`versionCode 12`)
 Privacy policy: <https://policy.msaadakram.me/> · Support: <https://policy.msaadakram.me/support>
 Contact: <msaadakram786@gmail.com>
 
@@ -93,7 +93,7 @@ published policy (sections 2–4).
 | Feature graphic | `graphics/feature-graphic-1024x500.png` | 1024×500 |
 | Phone screenshots | `screenshots/01_home.png`, `02_schedule.png`, `03_home_filled.png` | 1080×1920 (9:16) |
 
-Screenshots were captured from the signed release build (`com.msaadakram.lahorebus`)
+Screenshots were captured from the signed release build (`com.lahorebus`)
 on a 1080×1920 emulator at 420 dpi. Play accepts 2–8 phone screenshots; more can
 be added later (journey results, route detail, privacy page, credits).
 
