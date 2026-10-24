@@ -1,4 +1,4 @@
-package com.codez.lahore_speedo_bus_guide
+package com.msaadakram.lahorebus
 
 import io.flutter.embedding.android.FlutterActivity
 

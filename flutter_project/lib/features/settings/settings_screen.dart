@@ -37,6 +37,8 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: 'Manage your preferences',
             ),
 
+            const _AppBrandCard(),
+
             // Dark Mode
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -174,7 +176,8 @@ class SettingsScreen extends ConsumerWidget {
                   icon: AppIcons.shield,
                   title: 'Privacy Policy',
                   subtitle: 'How your data is handled',
-                  onTap: () => Navigator.of(context).pushNamed(Routes.privacyPolicy),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(Routes.privacyPolicy),
                 ),
               ],
             ),
@@ -220,6 +223,65 @@ class SettingsScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: Tokens.spaceXxl),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AppBrandCard extends StatelessWidget {
+  const _AppBrandCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPaletteScope.paletteOf(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        Tokens.spaceLg,
+        AppSpacing.screen,
+        0,
+      ),
+      child: AppCard(
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(Tokens.radiusLg),
+              child: Image.asset(
+                'assets/images/app_logo.png',
+                key: const Key('app-brand-logo'),
+                width: 72,
+                height: 72,
+                fit: BoxFit.cover,
+                semanticLabel: 'Speedo Bus Route Guide logo',
+              ),
+            ),
+            const SizedBox(width: Tokens.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Speedo Bus Route Guide',
+                    style: TextStyle(
+                      fontSize: Tokens.fontBase,
+                      fontWeight: FontWeight.w800,
+                      color: palette.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Lahore Speedo Bus Guide · v2.1.0 (12)',
+                    style: TextStyle(
+                      fontSize: Tokens.fontSm,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

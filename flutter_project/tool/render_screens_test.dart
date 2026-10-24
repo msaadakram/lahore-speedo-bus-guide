@@ -100,6 +100,16 @@ void main() {
         ),
       ),
     );
+    // The app logo is an asynchronously decoded asset. Precache it outside
+    // the fake clock so Settings screenshots include the real artwork.
+    if (child is SettingsScreen) {
+      await tester.runAsync(
+        () => precacheImage(
+          const AssetImage('assets/images/app_logo.png'),
+          tester.element(find.byType(MaterialApp)),
+        ),
+      );
+    }
     for (var i = 0; i < 30; i++) {
       await tester.pump(const Duration(milliseconds: 60));
     }

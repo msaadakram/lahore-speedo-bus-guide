@@ -5,7 +5,7 @@ schedule in one place, with journey planning, live-style stop browsing, a
 nearby-stops finder and an offline map.
 
 Built with **Flutter 3.13** (Riverpod + GoRouter), package
-`com.codez.lahore_speedo_bus_guide`, version 2.1 (build 12).
+`com.msaadakram.lahorebus`, version 2.1 (build 12).
 
 ## Features
 

@@ -188,3 +188,37 @@ Note: `msaadakram.me` currently answers **“This deployment is temporarily
 paused”** at its host — the app links are correct, but the developer needs to
 resume/re-publish that hosting for the pages to load.
 Code: https://github.com/msaadakram/lahore-speedo-bus-guide
+
+---
+
+## 2026-10-24 — publisher package rename + Play release bundle
+
+App identity changed to the publisher's own package
+`com.msaadakram.lahorebus` (was `com.codez.lahore_speedo_bus_guide`):
+`applicationId`/`namespace`, `MainActivity` moved to
+`android/app/src/main/kotlin/com/msaadakram/lahorebus/`, and the two Dart
+package references (`force_update_modal._packageId`,
+`map_screen` OSM `userAgentPackageName`) updated to match.
+
+Release bundle `app-release.aab` (2.1.0 / versionCode 12):
+
+* 55,509,311 bytes, SHA-256
+  `9074ea9a61dfe953a17eb11d4d1164cfc5847fa2b2af53d0bb028ba0f204e237`
+* jarsigner “jar verified” · `bundletool validate` exit 0
+* manifest: package `com.msaadakram.lahorebus`, `versionCode 12`,
+  `versionName 2.1.0`, minSdk 24, targetSdk 36,
+  `com.msaadakram.lahorebus.MainActivity` exported
+* ABIs: arm64-v8a, armeabi-v7a, x86_64 · signed with upload key
+  `lahore-bus-release.jks` (alias `lahore-speedo-bus`, cert SHA-256
+  `9B:EA:27:07:D5:2F:69:42:03:ED:D6:F5:16:1A:E1:71:5C:B7:26:D3:FE:71:5D:2A:B1:9D:B7:C9:E8:AE:FD:FC`)
+
+On-device verification (`emulator-5554`, fresh install of the release APK):
+`adb shell am start -n com.msaadakram.lahorebus/.MainActivity` launches and
+renders; `dumpsys package` reports versionCode 12 / targetSdk 36; zero
+FATAL/ANR in logcat; `play.google.com/store/apps/details?id=com.msaadakram.lahorebus`
+answers 404 (package id is free). Release gates re-run after the rename:
+`flutter analyze` clean · `flutter test` 50/50.
+
+Known UI follow-up found while shooting store screenshots: the route-detail
+stat tiles (`StatBox`) are 4-up `Expanded` and ellipsize long values
+(“Every 9 min”, “06:00 AM – 10:30 PM”) at ≤411 dp. Fix before the next update.

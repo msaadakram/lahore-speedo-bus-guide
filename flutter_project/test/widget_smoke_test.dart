@@ -97,6 +97,8 @@ void main() {
   ) async {
     await pumpScreen(tester, const SettingsScreen());
     expect(find.text('Manage your preferences'), findsOneWidget);
+    expect(find.byKey(const Key('app-brand-logo')), findsOneWidget);
+    expect(find.text('Speedo Bus Route Guide'), findsOneWidget);
     expect(find.text('Dark Mode'), findsOneWidget);
     expect(find.text('CONTACT & SUPPORT'), findsOneWidget);
     expect(

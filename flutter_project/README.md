@@ -15,7 +15,7 @@ decoded smali. See `../reverse_engineering/` for the full analysis.
 | | |
 |---|---|
 | **Framework** | Flutter 3.47.5 / Dart 3.13.4 |
-| **Application ID** | `com.codez.lahore_speedo_bus_guide` |
+| **Application ID** | `com.msaadakram.lahorebus` |
 | **Version** | `2.1.0+12` (mirrors the original `2.1` / `12`) |
 | **minSdk / targetSdk** | 24 / 36 (both identical to the original) |
 | **State management** | Riverpod |
@@ -206,9 +206,9 @@ dart format .                     # formatting
 
 | Setting | Value | Source |
 |---|---|---|
-| `applicationId` | `com.codez.lahore_speedo_bus_guide` | original package name |
+| `applicationId` | `com.msaadakram.lahorebus` | new publisher package (own app id) |
 | label | `Lahore Speedo Bus Guide` | `res/values/strings.xml` |
-| launcher icon | extracted from all 5 mipmap densities | `res/mipmap-*/ic_launcher.png` |
+| launcher icon | supplied Speedo Bus Route Guide artwork, with adaptive Android foreground and all iOS app-icon sizes | `res/mipmap-*/ic_launcher.png`, `ios/Runner/Assets.xcassets/AppIcon.appiconset/` |
 | `launchMode` | `singleTask` | original manifest |
 | `windowSoftInputMode` | `adjustResize` | original manifest |
 | `allowBackup` | `false` | original manifest |

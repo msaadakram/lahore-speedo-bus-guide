@@ -19,7 +19,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.codez.lahore_speedo_bus_guide"
+    namespace = "com.msaadakram.lahorebus"
     // The original app targeted SDK 36 (Android 16).
     compileSdk = 36
     ndkVersion = "28.2.13676358"
@@ -44,7 +44,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.codez.lahore_speedo_bus_guide"
+        applicationId = "com.msaadakram.lahorebus"
         // minSdk 24 matches the original APK.
         minSdk = 24
         targetSdk = 36
