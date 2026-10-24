@@ -236,3 +236,18 @@ OSM `userAgentPackageName`) and docs updated. Signing key, version 2.1.0 (12)
 and all app code are unchanged.
 
 `com.lahorebus` is unused on Play (listing URL 404) at the time of the rename.
+
+Rebuilt bundle verified: `jarsigner` “jar verified” · `bundletool validate`
+exit 0 · manifest package `com.lahorebus`, versionCode 12 / 2.1.0, minSdk 24 /
+targetSdk 36, `com.lahorebus.MainActivity` exported · arm64-v8a + armeabi-v7a
++ x86_64 · `flutter analyze` clean · `flutter test` 50/50. On-device
+(`emulator-5554`, release APK): fresh install OK, `am start -n
+com.lahorebus/.MainActivity` launches, process alive, `dumpsys package`
+reports versionCode 12 / targetSdk 36, zero FATAL/ANR in logcat.
+
+Artifacts (also on GitHub release `v2.1.0`):
+
+* `artifacts/lahorebus-2.1.0-12.aab` — 55,509,136 B, SHA-256
+  `c56e41473d18b31e8738a64f2b7c7fc41760e78bfa0d0e72a61d4db0e1dbf780`
+* `artifacts/lahorebus-2.1.0-12.apk` — 56,657,083 B, SHA-256
+  `8b6331532fbc9685f6467a90a21ffdc43dbabdba021cbe2a461e492d6a47974f`
