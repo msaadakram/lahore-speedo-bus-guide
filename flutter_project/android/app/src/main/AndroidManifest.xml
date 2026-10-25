@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Advertising ID. The Play Console advertising-ID declaration for this
+         app is "Yes", and with targetSdk >= 33 the permission must be present
+         in the artifact or Play rejects the upload / zeroes the ID. Declared
+         here only to satisfy that declaration; the app does not read the
+         advertising ID itself. Do not remove while the declaration is "Yes". -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
     <!-- Needed by flutter_map / url_launcher to resolve external targets. -->
     <queries>
         <intent>

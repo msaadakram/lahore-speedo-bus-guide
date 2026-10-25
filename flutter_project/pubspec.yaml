@@ -2,7 +2,7 @@ name: lahore_speedo_bus_guide
 description: "Lahore Speedo Bus Guide — faithful Flutter rebuild of the original React Native application."
 publish_to: 'none'
 
-version: 2.1.0+12
+version: 2.1.0+13
 
 environment:
   sdk: ^3.13.4

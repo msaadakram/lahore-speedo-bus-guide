@@ -251,3 +251,52 @@ Artifacts (also on GitHub release `v2.1.0`):
   `c56e41473d18b31e8738a64f2b7c7fc41760e78bfa0d0e72a61d4db0e1dbf780`
 * `artifacts/lahorebus-2.1.0-12.apk` — 56,657,083 B, SHA-256
   `8b6331532fbc9685f6467a90a21ffdc43dbabdba021cbe2a461e492d6a47974f`
+
+---
+
+## 2026-10-25 — AD_ID permission + versionCode 13 (Play Console fix)
+
+Play Console rejected the previous submission: the app's **advertising-ID
+declaration is “Yes”**, but the uploaded AAB did not contain
+`com.google.android.gms.permission.AD_ID`. Since targetSdk is 36 (≥ 33),
+Google requires the permission to be present in the artifact whenever the
+declaration says the app uses the advertising ID.
+
+Fix (declaration kept as “Yes”, per the release decision):
+
+* `android/app/src/main/AndroidManifest.xml` — added
+  `<uses-permission android:name="com.google.android.gms.permission.AD_ID" />`
+  directly inside `<manifest>` (used by the release variant; no
+  `src/release` override, no product flavors). No `tools:node` rules exist
+  anywhere in the project, so nothing can strip the permission during merge;
+  the debug/profile manifests only add INTERNET.
+* `pubspec.yaml` — `version: 2.1.0+12` → `2.1.0+13` (versionCode 12 was
+  burned by the rejected Play upload; versionName stays 2.1.0).
+
+Verification of the final artifact (rebuilt from scratch with
+`flutter clean` + `flutter pub get` + `flutter build appbundle --release`):
+
+* merged release manifest
+  `build/app/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml`
+  contains the AD_ID uses-permission (line 28) and no `tools:node` rules
+* `bundletool dump manifest` on the AAB confirms
+  `com.google.android.gms.permission.AD_ID`, package `com.lahorebus`,
+  versionCode 13 / versionName 2.1.0, minSdk 24 / targetSdk 36,
+  `com.lahorebus.MainActivity` · `bundletool validate` exit 0 ·
+  jarsigner “jar verified”
+* `flutter analyze` clean · `flutter test` 50/50
+* on-device (`emulator-5554`, release APK `lahorebus-2.1.0-13.apk`): install
+  OK, `dumpsys package com.lahorebus` lists AD_ID among requested
+  permissions, `am start -n com.lahorebus/.MainActivity` launches, process
+  alive, zero FATAL/ANR in logcat
+
+Artifacts (GitHub release `v2.1.0-13`):
+
+* `artifacts/lahorebus-2.1.0-13.aab` — 55,509,164 B, SHA-256
+  `5a13092e09f6ac499ca2d8095bbca93d7ec71885078fa0593e806b4388cc7f79`
+* `artifacts/lahorebus-2.1.0-13.apk` — 56,657,107 B, SHA-256
+  `b5522f759cb152194db2d01820cecdb3260150a2f8b89eff31e8d6a9409be85a`
+
+Note: the app still ships no ad SDK — the permission exists only to satisfy
+the Console's advertising-ID declaration. If ads are never added and the
+declaration is later switched to “No”, remove the permission again.

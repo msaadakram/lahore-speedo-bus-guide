@@ -1,6 +1,6 @@
 # Play Store listing copy — Lahore Speedo Bus Guide
 
-Package: `com.lahorebus` · Version: `2.1.0` (`versionCode 12`)
+Package: `com.lahorebus` · Version: `2.1.0` (`versionCode 13`)
 Privacy policy: <https://policy.msaadakram.me/> · Support: <https://policy.msaadakram.me/support>
 Contact: <msaadakram786@gmail.com>
 
@@ -41,7 +41,7 @@ FEEDBACK
 
 Found a wrong stop, route or timing? Send a note from Settings → Send Feedback or email msaadakram786@gmail.com. Reports help keep the guide accurate.
 
-## Release notes — 2.1.0 (12)
+## Release notes — 2.1.0 (13)
 
 First release of the rebuilt app: a fresh design, faster startup, offline route and schedule data, journey planning, nearby stops and dark mode. No ads and no tracking.
 
@@ -56,7 +56,8 @@ First release of the rebuilt app: a fresh design, faster startup, offline route 
 | Contact email | msaadakram786@gmail.com |
 | Website | https://github.com/msaadakram/lahore-speedo-bus-guide |
 | Privacy policy | https://policy.msaadakram.me/ |
-| Ads | No ads |
+| Ads | No ads (the app ships no ad SDK and displays no ads) |
+| Advertising ID declaration | **Yes** (per Console declaration) — the manifest therefore declares `com.google.android.gms.permission.AD_ID`; the app itself does not read the advertising ID |
 | App access | All functionality available without login or special access |
 | Target audience | 13+ (not designed for children) |
 | Content rating | Utility / Productivity / Communication / Other → all answers **No** → Everyone |
@@ -106,8 +107,8 @@ be added later (journey results, route detail, privacy page, credits).
    Certificate SHA-256:
    `9B:EA:27:07:D5:2F:69:42:03:ED:D6:F5:16:1A:E1:71:5C:B7:26:D3:FE:71:5D:2A:B1:9D:B7:C9:E8:AE:FD:FC`
 3. **Production → Create new release** → upload
-   `lahorebus-2.1.0-12.aab` (SHA-256
-   `9074ea9a61dfe953a17eb11d4d1164cfc5847fa2b2af53d0bb028ba0f204e237`).
+   `lahorebus-2.1.0-13.aab` (SHA-256
+   `5a13092e09f6ac499ca2d8095bbca93d7ec71885078fa0593e806b4388cc7f79`).
 4. **Store listing** → paste the title, short and full descriptions above, upload
    icon, feature graphic and screenshots, set contact details and privacy URL.
 5. **Data safety** → No data collected or shared (see table).
