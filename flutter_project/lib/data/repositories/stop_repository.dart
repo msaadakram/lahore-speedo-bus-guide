@@ -29,6 +29,9 @@ class StopRepository {
   bool _loaded = false;
   List<BusStop> _all = const [];
   final Map<String, List<StopRouteRef>> _routesByStop = {};
+  final Map<String, BusStop> _stopsByKey = {};
+
+  bool get isLoaded => _loaded;
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
@@ -59,12 +62,15 @@ class StopRepository {
 
     _all = byKey.values.toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    _stopsByKey
+      ..clear()
+      ..addAll(byKey);
     _loaded = true;
   }
 
   List<BusStop> get allStops => _all;
 
-  BusStop? byKey(String key) => _all.where((s) => s.id == key).firstOrNull;
+  BusStop? byKey(String key) => _stopsByKey[key];
 
   List<StopRouteRef> routesFor(String stopKey) =>
       List.unmodifiable(_routesByStop[stopKey] ?? const []);

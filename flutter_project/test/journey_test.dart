@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lahore_speedo_bus_guide/data/models/bus_stop.dart';
 import 'package:lahore_speedo_bus_guide/data/models/route.dart';
 import 'package:lahore_speedo_bus_guide/data/repositories/journey_repository.dart';
+import 'package:lahore_speedo_bus_guide/data/repositories/routes_repository.dart';
+import 'package:lahore_speedo_bus_guide/data/repositories/stop_repository.dart';
 
 /// Exercises `JourneyRepository.buildLeg` and `findBestTransfer` against the real
 /// bundled dataset — the same core logic the JourneyResults/Detail screens use.
@@ -142,6 +144,74 @@ void main() {
       expect(metro, isNotNull);
       expect(speedo, isNotNull);
       expect(none, isEmpty);
+    });
+  });
+
+  group('findJourneys', () {
+    setUpAll(() async {
+      await RoutesRepository.instance.ensureLoaded();
+      await StopRepository.instance.ensureLoaded();
+    });
+
+    test('transfers never emit a phantom zero-stop bus leg', () {
+      const pairs = [
+        ('8 kalma chowk', 'zafar ali road'),
+        ('8 kalma chowk', 'wafaqi colony'),
+        ('ali town station', 'jinnah terminal'),
+      ];
+
+      for (final (from, to) in pairs) {
+        final results = JourneyRepository.findJourneys(
+          from,
+          to,
+          limit: 20,
+          now: DateTime(2026, 1, 1, 9),
+        );
+
+        expect(results, isNotEmpty, reason: '$from → $to');
+        for (final journey in results) {
+          for (final leg in journey.legs) {
+            expect(
+              leg.stopsTravelled,
+              greaterThan(0),
+              reason:
+                  '$from → $to: ${leg.routeName}: '
+                  '${leg.fromName} → ${leg.toName} must be a real bus leg',
+            );
+            expect(leg.fromName, isNot(leg.toName));
+          }
+        }
+      }
+    });
+
+    test('ranks direct service above a transfer and includes walking time', () {
+      final results = JourneyRepository.findJourneys(
+        'ali town station',
+        'jinnah terminal',
+        limit: 8,
+        now: DateTime(2026, 1, 1, 9),
+      );
+
+      expect(results, isNotEmpty);
+      expect(
+        results.first.transfers,
+        0,
+        reason: 'direct service must rank first',
+      );
+
+      final walking = results.where((j) => j.transfers > 0).firstOrNull;
+      if (walking == null) return;
+
+      final travel = walking.legs.fold<int>(
+        0,
+        (sum, leg) => sum + leg.travelMinutes,
+      );
+      expect(walking.transferWalk?.walkMeters, greaterThan(0));
+      expect(
+        walking.estimatedMinutes,
+        greaterThanOrEqualTo(travel + walking.totalWalkMinutes),
+        reason: 'a walking transfer must contribute to the arrival estimate',
+      );
     });
   });
 

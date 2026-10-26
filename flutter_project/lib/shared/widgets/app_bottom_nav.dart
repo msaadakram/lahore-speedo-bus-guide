@@ -8,9 +8,8 @@ import '../../features/schedule/schedule_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import 'app_widgets.dart';
 
-/// Bottom navigation bar recreated from `BottomTabs.tsx` (Metro module 557):
-/// Paper `BottomNavigation.Bar`, `compact`, white active pill, primary active
-/// colour, `textSecondary` inactive, `card` background and a top hairline.
+/// Bottom navigation bar recreated from `BottomTabs.tsx` and upgraded to the
+/// app's soft, elevated design language.
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({
     required this.currentIndex,
@@ -43,35 +42,41 @@ class AppBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.card,
-        border: Border(top: BorderSide(color: palette.border)),
-        boxShadow: [
-          BoxShadow(
-            color: palette.shadow,
-            blurRadius: 20,
-            offset: const Offset(0, -6),
-            spreadRadius: -6,
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: palette.canvasGradient),
+      child: Container(
+        decoration: BoxDecoration(
+          color: palette.card.withValues(alpha: .98),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(Tokens.shapeLg),
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            children: [
-              for (var i = 0; i < tabs.length; i++)
-                Expanded(
-                  child: _NavItem(
-                    tab: tabs[i],
-                    selected: i == currentIndex,
-                    palette: palette,
-                    onTap: () => onSelect(i),
+          border: Border(top: BorderSide(color: palette.border)),
+          boxShadow: [
+            BoxShadow(
+              color: palette.shadow,
+              blurRadius: 26,
+              offset: const Offset(0, -10),
+              spreadRadius: -8,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 74,
+            child: Row(
+              children: [
+                for (var i = 0; i < tabs.length; i++)
+                  Expanded(
+                    child: _NavItem(
+                      tab: tabs[i],
+                      selected: i == currentIndex,
+                      palette: palette,
+                      onTap: () => onSelect(i),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -98,14 +103,22 @@ class _NavItem extends StatelessWidget {
     return AppPressable(
       onPressed: onTap,
       borderless: true,
+      selected: selected,
+      semanticLabel: '${tab.label} tab',
+      borderRadius: BorderRadius.circular(Tokens.shapePill),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(
+              horizontal: Tokens.spaceMd,
+              vertical: 4,
+            ),
             decoration: BoxDecoration(
               color: selected
-                  ? palette.primary.withValues(alpha: 0.16)
+                  ? palette.primary.withValues(alpha: .16)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(Tokens.shapePill),
             ),
@@ -116,14 +129,19 @@ class _NavItem extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            tab.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             style: TextStyle(
               fontSize: Tokens.fontXs,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
               color: color,
+              letterSpacing: selected ? .2 : 0,
+            ),
+            child: Text(
+              tab.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -132,8 +150,12 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// Hosts the four tabs with a `GlobalKey<NavigatorState>`-free index-based
-/// switcher that mirrors the original bottom-tab behaviour.
+/// Hosts the four tabs.
+///
+/// Tabs are instantiated lazily, then kept alive in an [IndexedStack]. This
+/// avoids asking for location permission before the user opens Nearby, while
+/// also preserving each tab's scroll position, selected category and journey
+/// selections when the user moves between tabs.
 class MainTabsHost extends StatefulWidget {
   const MainTabsHost({super.key});
 
@@ -143,27 +165,30 @@ class MainTabsHost extends StatefulWidget {
 
 class _MainTabsHostState extends State<MainTabsHost> {
   int _index = 0;
+  final List<Widget?> _builtTabs = [const HomeScreen(), null, null, null];
 
   void _select(int i) {
-    if (i == _index) return;
-    setState(() => _index = i);
+    if (i == _index || i < 0 || i >= _builtTabs.length) return;
+    setState(() {
+      _index = i;
+      _builtTabs[i] ??= switch (i) {
+        1 => const NearbyScreen(),
+        2 => const ScheduleScreen(),
+        _ => const SettingsScreen(),
+      };
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    final page = <Widget>[
-      const HomeScreen(),
-      const NearbyScreen(),
-      const ScheduleScreen(),
-      const SettingsScreen(),
-    ][_index];
-
     return Scaffold(
       extendBody: false,
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: palette.canvasGradient),
-        child: page,
+      body: IndexedStack(
+        index: _index,
+        children: [
+          for (var i = 0; i < _builtTabs.length; i++)
+            _builtTabs[i] ?? const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _index,

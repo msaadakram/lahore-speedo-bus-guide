@@ -15,8 +15,8 @@ class CreditsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -161,7 +161,16 @@ class _CreditCard extends StatelessWidget {
           ),
           const SizedBox(height: Tokens.spaceMd),
           AppPressable(
-            onPressed: () => openLink(url),
+            onPressed: () async {
+              final opened = await openLink(url);
+              if (!opened && context.mounted) {
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(content: Text('Could not open the link.')),
+                  );
+              }
+            },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -174,12 +183,16 @@ class _CreditCard extends StatelessWidget {
                 children: [
                   Icon(AppIcons.link, size: 16, color: accent),
                   const SizedBox(width: 6),
-                  Text(
-                    'Visit msaadakram.me',
-                    style: TextStyle(
-                      fontSize: Tokens.fontSm,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
+                  Flexible(
+                    child: Text(
+                      'Visit msaadakram.me',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Tokens.fontSm,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                      ),
                     ),
                   ),
                 ],

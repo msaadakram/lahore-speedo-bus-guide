@@ -125,8 +125,11 @@ class AppRouter {
       case Routes.map:
         return MapScreen(args: args as MapArgs? ?? const MapArgs());
       case Routes.stopPicker:
-        final pa = args as StopPickerArgs;
-        return StopPickerScreen(mode: pa.mode, title: pa.title);
+        final pickerArgs = args as StopPickerArgs?;
+        return StopPickerScreen(
+          mode: pickerArgs?.mode ?? 'from',
+          title: pickerArgs?.title,
+        );
       case Routes.journeyResults:
         return JourneyResultsScreen(args: args as JourneyResultsArgs);
       case Routes.journeyDetail:

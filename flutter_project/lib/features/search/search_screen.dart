@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/router.dart';
-import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../data/models/route.dart';
@@ -11,10 +10,7 @@ import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// SearchScreen (Metro module 1071).
-///
-/// The original matches case-insensitively on route name, station address, id,
-/// stop names, frequency and category, in `ROUTES` order (no sort, no debounce).
+/// SearchScreen — instant, offline search across every route and stop.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -23,116 +19,119 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final TextEditingController _controller = TextEditingController();
   String _query = '';
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final data = ref.watch(routesDataProvider);
     final routes = data.valueOrNull?.routes ?? const <BusRoute>[];
-    final q = _query.toLowerCase();
-    final results = q.isEmpty
+    final query = _query.trim().toLowerCase();
+    final results = query.isEmpty
         ? routes
-        : routes.where((r) => _matches(r, q)).toList();
+        : routes.where((route) => _matches(route, query)).toList();
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
-              ),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceSm,
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pop(),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.arrowLeft,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: Tokens.spaceSm),
-                      Expanded(
-                        child: TextField(
-                          autofocus: true,
-                          onChanged: (v) => setState(() => _query = v),
-                          cursorColor: Colors.white,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: Tokens.fontBase,
-                          ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Search by route name or stop name ...',
-                            hintStyle: TextStyle(
-                              color: Color(0xB3FFFFFF),
-                              fontSize: Tokens.fontBase,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+            AppPageHeader(
+              title: 'Search Routes',
+              subtitle: _query.isEmpty
+                  ? 'Search by route name or stop name'
+                  : '${results.length} ${results.length == 1 ? 'result' : 'results'}',
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 36,
+              bottom: TextField(
+                controller: _controller,
+                autofocus: true,
+                onChanged: (value) => setState(() => _query = value),
+                cursorColor: Colors.white,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: Tokens.fontBase,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search by route name or stop name ...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xB3FFFFFF),
+                    fontSize: Tokens.fontBase,
                   ),
-                  const SizedBox(height: Tokens.spaceSm),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Search Routes',
-                      style: TextStyle(
-                        fontSize: Tokens.fontSm,
-                        fontWeight: FontWeight.w600,
-                        color: palette.text,
-                      ),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: .16),
+                  prefixIcon: const Icon(
+                    AppIcons.magnify,
+                    size: 19,
+                    color: Color(0xCCFFFFFF),
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 44,
+                    minHeight: 44,
+                  ),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : AppPressable(
+                          onPressed: () {
+                            _controller.clear();
+                            setState(() => _query = '');
+                          },
+                          semanticLabel: 'Clear search',
+                          borderless: true,
+                          rippleColor: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          child: const Icon(
+                            AppIcons.close,
+                            size: 17,
+                            color: Color(0xCCFFFFFF),
+                          ),
+                        ),
+                  suffixIconConstraints: const BoxConstraints(
+                    minWidth: 42,
+                    minHeight: 42,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(Tokens.shapeMd),
+                    borderSide: const BorderSide(color: Color(0x40FFFFFF)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(Tokens.shapeMd),
+                    borderSide: const BorderSide(color: Color(0x40FFFFFF)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(Tokens.shapeMd),
+                    borderSide: const BorderSide(
+                      color: Color(0x99FFFFFF),
+                      width: 2,
                     ),
                   ),
-                ],
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: Tokens.spaceSm,
+                    vertical: 14,
+                  ),
+                ),
               ),
             ),
-
             Expanded(
               child: _query.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            AppIcons.magnify,
-                            size: 40,
-                            color: palette.textSecondary,
-                          ),
-                          const SizedBox(height: Tokens.spaceMd),
-                          Text(
-                            'Start typing to search',
-                            style: TextStyle(
-                              color: palette.textSecondary,
-                              fontSize: Tokens.fontBase,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ? const EmptyState(
+                      icon: AppIcons.magnify,
+                      title: 'Start typing to search',
+                      message: 'Search all Speedo, Metro, Orange Line and Electric routes.',
                     )
                   : results.isEmpty
                   ? const EmptyState(
                       icon: AppIcons.search,
-                      message: 'No routes found',
+                      title: 'No routes found',
+                      message: 'Try another route, stop or destination name.',
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(
@@ -144,8 +143,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       itemCount: results.length,
                       separatorBuilder: (_, _) =>
                           const SizedBox(height: Tokens.spaceSm),
-                      itemBuilder: (context, i) {
-                        final route = results[i];
+                      itemBuilder: (context, index) {
+                        final route = results[index];
                         return RouteRow(
                           route: route,
                           onTap: () => Navigator.of(context).pushNamed(
@@ -165,12 +164,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  bool _matches(BusRoute r, String q) {
-    if (r.name.toLowerCase().contains(q)) return true;
-    if (r.stationAddress.toLowerCase().contains(q)) return true;
-    if (r.id.toLowerCase().contains(q)) return true;
-    if ((r.frequency ?? '').toLowerCase().contains(q)) return true;
-    if (r.category.toLowerCase().contains(q)) return true;
-    return r.stops.any((s) => s.toLowerCase().contains(q));
+  bool _matches(BusRoute route, String query) {
+    if (route.name.toLowerCase().contains(query)) return true;
+    if (route.stationAddress.toLowerCase().contains(query)) return true;
+    if (route.id.toLowerCase().contains(query)) return true;
+    if ((route.frequency ?? '').toLowerCase().contains(query)) return true;
+    if (route.category.toLowerCase().contains(query)) return true;
+    return route.stops.any((stop) => stop.toLowerCase().contains(query));
   }
 }

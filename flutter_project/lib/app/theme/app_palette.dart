@@ -9,6 +9,8 @@ class AppPalette {
   const AppPalette({
     required this.primary,
     required this.primaryBright,
+    required this.heroStart,
+    required this.heroEnd,
     required this.accent,
     required this.accentSoft,
     required this.background,
@@ -27,6 +29,11 @@ class AppPalette {
 
   final Color primary;
   final Color primaryBright;
+
+  /// Upper/lower anchors for the hero gradient. They are deliberately darker
+  /// than `accent` so white header copy keeps AA contrast in both themes.
+  final Color heroStart;
+  final Color heroEnd;
   final Color accent;
   final Color accentSoft;
   final Color background;
@@ -45,6 +52,8 @@ class AppPalette {
   static const light = AppPalette(
     primary: AppColors.forest,
     primaryBright: AppColors.grass,
+    heroStart: AppColors.forest,
+    heroEnd: AppColors.forestDeep,
     accent: AppColors.lime,
     accentSoft: AppColors.limePale,
     background: AppColors.canvasTop,
@@ -64,6 +73,8 @@ class AppPalette {
   static const dark = AppPalette(
     primary: AppColors.primaryDark,
     primaryBright: AppColors.grass,
+    heroStart: AppColors.moss,
+    heroEnd: AppColors.forestDeep,
     accent: AppColors.lime,
     accentSoft: Color(0xFF3E4C1C),
     background: AppColors.canvasTopDark,
@@ -80,13 +91,12 @@ class AppPalette {
     onPrimary: AppColors.forestDeep,
   );
 
-  /// The signature vertical gradient of the artwork: lit grass at the top
-  /// fading into deep shadow, with the pale lime returning at the foot.
+  /// The signature vertical gradient. Both anchors are deep forest tones so
+  /// white header copy keeps AA contrast in light and dark mode.
   LinearGradient get heroGradient => LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [primaryBright, primary, accent],
-    stops: const [0.0, 0.68, 1.0],
+    colors: [heroStart, heroEnd],
   );
 
   /// Soft two-stop canvas gradient.

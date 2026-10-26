@@ -99,7 +99,7 @@ void main() {
     expect(find.text('Manage your preferences'), findsOneWidget);
     expect(find.byKey(const Key('app-brand-logo')), findsOneWidget);
     expect(find.text('Speedo Bus Route Guide'), findsOneWidget);
-    expect(find.text('Dark Mode'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('CONTACT & SUPPORT'), findsOneWidget);
     expect(
       find.textContaining('This is an unofficial companion app'),

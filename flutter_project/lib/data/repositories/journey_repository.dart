@@ -100,6 +100,7 @@ class JourneyRepository {
 
   static const int walkRadiusMeters = 600;
   static const int kTransferPenaltyMinutes = 80;
+  static const int kConnectionBufferMinutes = 5;
 
   static Leg buildLeg(BusRoute route, int fromIndex, int toIndex) {
     final reversed = fromIndex > toIndex;
@@ -153,7 +154,7 @@ class JourneyRepository {
       final key = norm(routeA.stops[aI]);
       if (key.isEmpty) continue;
       final bI = bIndex[key];
-      if (bI == null) continue;
+      if (bI == null || aI == aIdx || bI == bIdx) continue;
       final cost = (aI - aIdx).abs() + (bI - bIdx).abs();
       if (best != null && best.cost <= cost) continue;
       best = (
@@ -166,27 +167,34 @@ class JourneyRepository {
       );
     }
 
-    // Allow a short walk between two different-but-nearby stops.
-    final stops = StopRepository.instance.byKey(norm(routeA.stops[aIdx]));
-    if (stops != null) {
-      for (final near
-          in StopRepository.instance
-              .nearby(
-                latitude: stops.latitude,
-                longitude: stops.longitude,
-                radiusMeters: walkRadiusMeters,
-              )
-              .take(12)) {
+    // Allow a short walk between two different-but-nearby stops. The walk must
+    // start from a real alighting stop on route A; anchoring it at the origin
+    // used to create a phantom "origin → origin" bus leg and charge a second
+    // fare for a walk-only connection.
+    for (var aI = 0; aI < routeA.stops.length; aI++) {
+      if (aI == aIdx) continue;
+      final stopA = StopRepository.instance.byKey(norm(routeA.stops[aI]));
+      if (stopA == null || stopA.latitude == 0 || stopA.longitude == 0) {
+        continue;
+      }
+      final nearby = StopRepository.instance.nearby(
+        latitude: stopA.latitude,
+        longitude: stopA.longitude,
+        radiusMeters: walkRadiusMeters,
+      );
+      for (final near in nearby.take(12)) {
         for (var bI = 0; bI < routeB.stops.length; bI++) {
-          if (norm(routeB.stops[bI]) != near.stop.id) continue;
+          if (bI == bIdx || norm(routeB.stops[bI]) != near.stop.id) continue;
           final walk = near.distanceMeters;
           final cost =
-              (bI - bIdx).abs() + (walk / kTransferPenaltyMinutes).round();
+              (aI - aIdx).abs() +
+              (bI - bIdx).abs() +
+              (walk / kTransferPenaltyMinutes).round();
           if (best != null && best.cost <= cost) continue;
           best = (
-            aIdx: aIdx,
+            aIdx: aI,
             bIdx: bI,
-            aName: routeA.stops[aIdx],
+            aName: routeA.stops[aI],
             bName: routeB.stops[bI],
             walkMeters: walk,
             cost: cost,
@@ -255,10 +263,10 @@ class JourneyRepository {
     }
 
     found.sort((x, y) {
+      if (x.transfers != y.transfers) return x.transfers.compareTo(y.transfers);
       final sx = x.legs.fold<int>(0, (a, l) => a + l.stopsTravelled);
       final sy = y.legs.fold<int>(0, (a, l) => a + l.stopsTravelled);
-      if (sx != sy) return sx.compareTo(sy);
-      return x.transfers.compareTo(y.transfers);
+      return sx.compareTo(sy);
     });
 
     final out = <Journey>[];
@@ -284,8 +292,20 @@ class JourneyRepository {
       if (i == 0) {
         final wait = _waitMinutes(time, leg);
         time = time.add(Duration(minutes: wait));
-      } else if (transferWalk != null && transferWalk.walkMeters > 0) {
-        totalWalkMeters += transferWalk.walkMeters;
+      } else {
+        if (transferWalk != null && transferWalk.walkMeters > 0) {
+          totalWalkMeters += transferWalk.walkMeters;
+          time = time.add(
+            Duration(minutes: walkMinutesFor(transferWalk.walkMeters)),
+          );
+        }
+        // Connections are never instantaneous: allow at least a short buffer,
+        // or the next scheduled departure of the connecting line if that is
+        // later.
+        final connectionWait = _waitMinutes(time, leg);
+        time = time.add(
+          Duration(minutes: mathMax(kConnectionBufferMinutes, connectionWait)),
+        );
       }
       final departure = time;
       final arrival = departure.add(Duration(minutes: leg.travelMinutes));

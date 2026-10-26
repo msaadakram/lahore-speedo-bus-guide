@@ -3,6 +3,8 @@
     <!-- Recovered from theme.ts (COLORS.background = #F5F7FA light,
          DARK_COLORS.background = #121212 dark). -->
     <color name="window_background">#F5F7FA</color>
+    <!-- Keep the native splash branded in both system appearances. -->
+    <color name="splash_background">#061B45</color>
     <!-- Keep the adaptive launcher backdrop consistent with the supplied logo. -->
     <color name="ic_launcher_background">#FFFFFF</color>
 </resources>

@@ -33,11 +33,16 @@ class BusGuideApp extends ConsumerWidget {
           themeMode: themeState.themeMode,
           onGenerateRoute: AppRouter.onGenerateRoute,
           home: const MainTabsHost(),
-          builder: (context, child) => Stack(
-            children: [
-              child ?? const SizedBox.shrink(),
-              const ForceUpdateOverlay(),
-            ],
+          builder: (context, child) => MediaQuery.withClampedTextScaling(
+            // The transit UI is dense. Scaling beyond 1.4 made headers, cards
+            // and the map sheet overflow; 1.4 keeps large-text support usable.
+            maxScaleFactor: 1.4,
+            child: Stack(
+              children: [
+                child ?? const SizedBox.shrink(),
+                const ForceUpdateOverlay(),
+              ],
+            ),
           ),
         ),
       ),

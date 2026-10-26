@@ -13,7 +13,7 @@ import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// RouteDetailScreen (Metro module 1020).
+/// RouteDetailScreen — one line's fare, running times, departures and stops.
 class RouteDetailScreen extends ConsumerStatefulWidget {
   const RouteDetailScreen({required this.args, super.key});
 
@@ -29,395 +29,324 @@ class _RouteDetailScreenState extends ConsumerState<RouteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final data = ref.watch(routesDataProvider);
     final route = data.valueOrNull?.routeById(widget.args.routeId);
 
+    if (data.isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: AppCanvas(
+          child: Column(
+            children: [
+              AppPageHeader(
+                title: 'Route',
+                subtitle: 'Loading timetable…',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              const Expanded(child: Center(child: CircularProgressIndicator())),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (data.hasError) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: AppCanvas(
+          child: Column(
+            children: [
+              AppPageHeader(
+                title: 'Route',
+                subtitle: 'Data unavailable',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: EmptyState(
+                  icon: AppIcons.alertTriangle,
+                  title: 'Route data unavailable',
+                  message: 'The bundled route dataset could not be loaded on this device.',
+                  action: AppButton(
+                    label: 'Retry',
+                    icon: AppIcons.reload,
+                    expand: false,
+                    onPressed: () {
+                      ref.invalidate(routesDataProvider);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (route == null) {
       return Scaffold(
-        body: Column(
-          children: [
-            AppPageHeader(
-              title: 'Route',
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            const Expanded(
-              child: EmptyState(icon: AppIcons.bus, message: 'Route not found'),
-            ),
-          ],
+        backgroundColor: Colors.transparent,
+        body: AppCanvas(
+          child: Column(
+            children: [
+              AppPageHeader(
+                title: 'Route',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              const Expanded(
+                child: EmptyState(
+                  icon: AppIcons.bus,
+                  title: 'Route not found',
+                  message: 'This route is not in the bundled dataset.',
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     final lineColor = parseRouteColor(route.color);
     final order = List<int>.generate(route.stops.length, (i) => i);
-    final stops = _reversed ? order.reversed.toList() : order;
+    final stopIndexes = _reversed ? order.reversed.toList() : order;
     final departures = Departures.getNextDepartures(
       route.frequency,
       route.operatingHours,
       limit: 5,
     );
+    final destination = route.stops[_reversed ? 0 : route.stops.length - 1];
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            // ---------------------------------------------------- header
-            Container(
-              decoration: BoxDecoration(gradient: palette.heroGradient),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceMd,
-              ),
-              child: Column(
+            AppPageHeader(
+              title: route.name,
+              subtitle: route.stationAddress,
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 36,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pop(),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.arrowLeft,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              route.stationAddress,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: Tokens.fontLg,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              route.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: Tokens.fontSm,
-                                color: Color(0xCCFFFFFF),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      AppPressable(
-                        onPressed: () => Share.share(
-                          '${route.name} · ${route.frequency ?? ''} | ${route.operatingHours ?? ''}',
-                        ),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.share,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                  AppGlassButton(
+                    icon: AppIcons.share,
+                    tooltip: 'Share route',
+                    size: 38,
+                    iconSize: 20,
+                    onPressed: () => Share.share(_shareText(route)),
                   ),
-                  const SizedBox(height: Tokens.spaceSm),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-'Towards ${route.stops[_reversed ? 0 : route.stops.length - 1]}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: Tokens.fontSm,
-                            color: Color(0xE6FFFFFF),
-                          ),
-                        ),
+                  const SizedBox(width: Tokens.spaceSm),
+                  AppGlassButton(
+                    icon: AppIcons.map,
+                    tooltip: 'View on map',
+                    size: 38,
+                    iconSize: 20,
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      Routes.map,
+                      arguments: MapArgs(
+                        routeId: route.id,
+                        color: route.color,
+                        title: route.name,
                       ),
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pushNamed(
-                          Routes.map,
-                          arguments: MapArgs(routeId: route.id),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Tokens.spaceSm,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0x33FFFFFF),
-                            borderRadius: BorderRadius.circular(
-                              Tokens.radiusFull,
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(AppIcons.map, size: 16, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'View on Map',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: Tokens.fontSm,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
+              bottom: Wrap(
+                spacing: Tokens.spaceSm,
+                runSpacing: Tokens.spaceSm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _HeaderChip(
+                    icon: AppIcons.flag,
+                    label: 'Towards $destination',
+                  ),
+                  _HeaderChip(
+                    icon: AppIcons.stop,
+                    label: '${route.stops.length} stops',
+                  ),
+                  if (route.operatingHours != null)
+                    _HeaderChip(
+                      icon: AppIcons.clock,
+                      label: route.operatingHours!,
+                    ),
+                ],
+              ),
             ),
-
-            // ---------------------------------------------------- body
             Expanded(
               child: ListView(
                 key: const Key('route-detail-list'),
-                padding: const EdgeInsets.only(bottom: Tokens.spaceXl),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  Tokens.spaceMd,
+                  AppSpacing.screen,
+                  Tokens.spaceXl,
+                ),
                 children: [
-                  // Stats
-                  Padding(
-                    padding: const EdgeInsets.all(Tokens.spaceMd),
-                    child: Row(
+                  AppCard(
+                    radius: Tokens.shapeXl,
+                    elevated: true,
+                    padding: const EdgeInsets.all(Tokens.spaceSm),
+                    child: Column(
                       children: [
-                        StatBox(
-                          label: 'FARE',
-                          value: 'Rs. ${route.fare}',
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: Tokens.spaceSm),
-                        StatBox(
-                          label: 'FREQUENCY',
-                          value: route.frequency ?? '—',
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: Tokens.spaceSm),
-                        StatBox(
-                          label: 'HOURS',
-                          value: route.operatingHours ?? '—',
-                          color: palette.primary,
-                        ),
-                        const SizedBox(width: Tokens.spaceSm),
-                        StatBox(
-                          label: 'TOTAL STOPS',
-                          value: '${route.stops.length}',
-                          color: palette.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Next departures
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: SectionHeader(
-                      text: 'NEXT DEPARTURES',
-                      margin: EdgeInsets.only(bottom: Tokens.spaceSm),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: Wrap(
-                      spacing: Tokens.spaceSm,
-                      runSpacing: Tokens.spaceSm,
-                      children: departures.isEmpty
-                          ? [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: Tokens.spaceMd,
-                                  vertical: Tokens.spaceSm,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: palette.card,
-                                  borderRadius: BorderRadius.circular(
-                                    Tokens.radiusFull,
-                                  ),
-                                  border: Border.all(color: palette.border),
-                                ),
-                                child: Text(
-                                  'No more buses today',
-                                  style: TextStyle(
-                                    fontSize: Tokens.fontSm,
-                                    color: palette.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ]
-                          : departures
-                                .map(
-                                  (d) => _DepartureChip(
-                                    route: route,
-                                    value: d.display,
-                                    reversed: _reversed,
-                                  ),
-                                )
-                                .toList(),
-                    ),
-                  ),
-
-                  const SizedBox(height: Tokens.spaceLg),
-
-                  // "View on Map" action (original: a coloured button below
-                  // the stat boxes).
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: AppPressable(
-                      onPressed: () => Navigator.of(context).pushNamed(
-                        Routes.map,
-                        arguments: MapArgs(
-                          routeId: route.id,
-                          color: route.color,
-                        ),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Tokens.spaceMd,
-                          vertical: Tokens.spaceMd,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.primary,
-                          borderRadius: BorderRadius.circular(Tokens.radiusLg),
-                        ),
-                        child: const Row(
+                        Row(
                           children: [
-                            Icon(AppIcons.map, size: 18, color: Colors.white),
-                            SizedBox(width: Tokens.spaceSm),
-                            Expanded(
-                              child: Text(
-                                'View on Map',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: Tokens.fontBase,
-                                ),
-                              ),
+                            StatBox(
+                              label: 'FARE',
+                              value: 'Rs. ${route.fare}',
+                              color: palette.primary,
+                              icon: AppIcons.send,
                             ),
-                            Icon(
-                              AppIcons.arrowRight,
-                              size: 16,
-                              color: Colors.white,
+                            const SizedBox(width: Tokens.spaceSm),
+                            StatBox(
+                              label: 'FREQUENCY',
+                              value: route.frequency ?? '—',
+                              color: palette.primary,
+                              icon: AppIcons.loop,
                             ),
                           ],
                         ),
+                        const SizedBox(height: Tokens.spaceSm),
+                        Row(
+                          children: [
+                            StatBox(
+                              label: 'HOURS',
+                              value: route.operatingHours ?? '—',
+                              color: palette.primary,
+                              icon: AppIcons.clock,
+                            ),
+                            const SizedBox(width: Tokens.spaceSm),
+                            StatBox(
+                              label: 'TOTAL STOPS',
+                              value: '${route.stops.length}',
+                              color: palette.primary,
+                              icon: AppIcons.stop,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Tokens.spaceMd),
+                  const SectionHeader(text: 'NEXT DEPARTURES'),
+                  const SizedBox(height: Tokens.spaceSm),
+                  AppCard(
+                    radius: Tokens.shapeXl,
+                    elevated: true,
+                    child: departures.isEmpty
+                        ? Text(
+                            'No more buses today',
+                            style: TextStyle(
+                              fontSize: Tokens.fontMd,
+                              fontWeight: FontWeight.w600,
+                              color: palette.textSecondary,
+                            ),
+                          )
+                        : Wrap(
+                            spacing: Tokens.spaceSm,
+                            runSpacing: Tokens.spaceSm,
+                            children: [
+                              for (final departure in departures)
+                                _DepartureChip(
+                                  route: route,
+                                  value: departure.display,
+                                  reversed: _reversed,
+                                ),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(height: Tokens.spaceLg),
+                  AppButton(
+                    label: 'View on Map',
+                    icon: AppIcons.map,
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      Routes.map,
+                      arguments: MapArgs(
+                        routeId: route.id,
+                        color: route.color,
+                        title: route.name,
                       ),
                     ),
                   ),
-
-                  // Stops header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
+                  const SizedBox(height: Tokens.spaceLg),
+                  AppCard(
+                    radius: Tokens.shapeXl,
+                    elevated: true,
+                    padding: const EdgeInsets.all(Tokens.spaceMd),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Stops',
-                          style: TextStyle(
-                            fontSize: Tokens.fontXl,
-                            fontWeight: FontWeight.w800,
-                            color: palette.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Stops along this route',
-                          style: TextStyle(
-                            fontSize: Tokens.fontSm,
-                            color: palette.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox.shrink(),
-                        AppPressable(
-                          onPressed: () =>
-                              setState(() => _reversed = !_reversed),
-                          child: Container(
-                            padding: const EdgeInsets.all(Tokens.spaceSm),
-                            decoration: BoxDecoration(
-                              color: palette.card,
-                              borderRadius: BorderRadius.circular(
-                                Tokens.radiusFull,
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Stops',
+                                style: TextStyle(
+                                  fontSize: Tokens.fontLg,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                              border: Border.all(color: palette.border),
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  AppIcons.swapVertical,
-                                  size: 16,
-                                  color: palette.text,
+                            AppPressable(
+                              onPressed: () =>
+                                  setState(() => _reversed = !_reversed),
+                              borderRadius: BorderRadius.circular(
+                                Tokens.shapePill,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: Tokens.spaceSm,
+                                  vertical: 6,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'DIRECTION',
-                                  style: TextStyle(
-                                    fontSize: Tokens.fontXs,
-                                    fontWeight: FontWeight.w800,
-                                    color: palette.text,
+                                decoration: BoxDecoration(
+                                  color: palette.surfaceTint,
+                                  borderRadius: BorderRadius.circular(
+                                    Tokens.shapePill,
                                   ),
+                                  border: Border.all(color: palette.border),
                                 ),
-                              ],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      AppIcons.swapVertical,
+                                      size: 14,
+                                      color: palette.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'DIRECTION',
+                                      style: TextStyle(
+                                        fontSize: Tokens.fontXs,
+                                        fontWeight: FontWeight.w800,
+                                        color: palette.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
+                        const SizedBox(height: Tokens.spaceSm),
+                        for (var i = 0; i < stopIndexes.length; i++)
+                          _StopTile(
+                            route: route,
+                            index: stopIndexes[i],
+                            isFirst: i == 0,
+                            isLast: i == stopIndexes.length - 1,
+                            lineColor: lineColor,
+                          ),
                       ],
                     ),
                   ),
-
-                  // Stop list
-                  for (var i = 0; i < stops.length; i++)
-                    _StopTile(
-                      route: route,
-                      index: stops[i],
-                      isFirst: i == 0,
-                      isLast: i == stops.length - 1,
-                      lineColor: lineColor,
-                    ),
-
-                  const SizedBox(height: Tokens.spaceLg),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: Text(
-                      'Bus times may vary due to traffic conditions',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: Tokens.fontSm,
-                        fontStyle: FontStyle.italic,
-                        color: palette.textSecondary,
-                      ),
+                  const SizedBox(height: Tokens.spaceMd),
+                  Text(
+                    'Bus times may vary due to traffic conditions',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: Tokens.fontSm,
+                      fontStyle: FontStyle.italic,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
@@ -425,6 +354,52 @@ class _RouteDetailScreenState extends ConsumerState<RouteDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _shareText(BusRoute route) => [
+    route.name,
+    if (route.frequency != null && route.frequency!.isNotEmpty)
+      route.frequency!,
+    if (route.operatingHours != null) route.operatingHours!,
+    'Fare: Rs. ${route.fare}',
+    'Stops: ${route.stops.join(' → ')}',
+  ].join('\n');
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(Tokens.shapePill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: Tokens.fontSm,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -452,9 +427,9 @@ class _DepartureChip extends StatelessWidget {
         vertical: Tokens.spaceSm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Tokens.radiusFull),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(Tokens.shapePill),
+        border: Border.all(color: color.withValues(alpha: .30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,12 +438,14 @@ class _DepartureChip extends StatelessWidget {
             value,
             style: TextStyle(
               fontSize: Tokens.fontBase,
-              fontWeight: FontWeight.w800,
-              color: color,
+              fontWeight: FontWeight.w900,
+              color: palette.text,
             ),
           ),
           Text(
             'from $stop',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: Tokens.fontXs,
               color: palette.textSecondary,
@@ -504,77 +481,76 @@ class _StopTile extends StatelessWidget {
         Routes.stopDetail,
         arguments: StopDetailArgs(stopName: stopName),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screen,
-          vertical: 2,
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 24,
-                child: Column(
+      borderRadius: BorderRadius.circular(Tokens.shapeLg),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 28,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: isFirst ? Colors.transparent : lineColor,
+                    ),
+                  ),
+                  Container(
+                    width: isFirst || isLast ? 12 : 10,
+                    height: isFirst || isLast ? 12 : 10,
+                    decoration: BoxDecoration(
+                      color: isFirst || isLast ? lineColor : palette.card,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: lineColor, width: 2.5),
+                      boxShadow: isFirst || isLast
+                          ? [
+                              BoxShadow(
+                                color: lineColor.withValues(alpha: .28),
+                                blurRadius: 8,
+                                spreadRadius: -1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: isLast ? Colors.transparent : lineColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: Tokens.spaceSm),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: Tokens.spaceSm),
+                child: Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        width: 2,
-                        color: isFirst ? Colors.transparent : lineColor,
+                      child: Text(
+                        stopName,
+                        style: TextStyle(
+                          fontSize: Tokens.fontMd,
+                          fontWeight: isFirst || isLast
+                              ? FontWeight.w800
+                              : FontWeight.w500,
+                          color: palette.text,
+                        ),
                       ),
                     ),
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: isFirst || isLast ? lineColor : palette.card,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: lineColor, width: 2),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        color: isLast ? Colors.transparent : lineColor,
-                      ),
+                    Icon(
+                      AppIcons.chevronRight,
+                      size: 16,
+                      color: palette.textSecondary,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: Tokens.spaceMd),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Tokens.spaceMd),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              stopName,
-                              style: TextStyle(
-                                fontSize: Tokens.fontMd,
-                                fontWeight: isFirst || isLast
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                                color: palette.text,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        AppIcons.chevronRight,
-                        size: 16,
-                        color: palette.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -18,10 +18,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -40,7 +39,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _Paragraph(
-                    'Lahore Speedo Bus Guide (''Lahore Electric Bus Guide'') '
+                    'Lahore Speedo Bus Guide ('
+                    'Lahore Electric Bus Guide'
+                    ') '
                     'helps you find routes, stops and schedules for the '
                     'Lahore bus network. It is built and maintained by '
                     'Muhammad Saad — no company, server or analytics '
@@ -91,7 +92,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       ),
                       _LinkLine(
                         'OpenStreetMap Foundation privacy policy: '
-                        'https://osmfoundation.org/wiki/Privacy_Policy',
+                            'https://osmfoundation.org/wiki/Privacy_Policy',
                         'https://osmfoundation.org/wiki/Privacy_Policy',
                       ),
                     ],
@@ -158,12 +159,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       _LinkLine(
                         'msaadakram786@gmail.com',
                         'mailto:msaadakram786@gmail.com?'
-                        'subject=Lahore%20Speedo%20Bus%20Guide',
+                            'subject=Lahore%20Speedo%20Bus%20Guide',
                       ),
-                      _LinkLine(
-                        'msaadakram.me',
-                        developerSite,
-                      ),
+                      _LinkLine('msaadakram.me', developerSite),
                     ],
                   ),
                 ],
@@ -174,6 +172,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _openLinkWithContext(BuildContext context, String url) async {
+  final opened = await openLink(url);
+  if (opened || !context.mounted) return;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(const SnackBar(content: Text('Could not open the link.')));
 }
 
 class _Section extends StatelessWidget {
@@ -281,7 +287,7 @@ class _LinkLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: AppPressable(
-        onPressed: () => openLink(url),
+        onPressed: () => _openLinkWithContext(context, url),
         child: Text(
           text,
           style: TextStyle(

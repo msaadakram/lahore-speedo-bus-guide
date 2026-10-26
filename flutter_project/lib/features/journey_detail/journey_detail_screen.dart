@@ -13,7 +13,7 @@ import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// JourneyDetailScreen (Metro module 1076).
+/// JourneyDetailScreen — step-by-step directions for a chosen journey.
 class JourneyDetailScreen extends ConsumerStatefulWidget {
   const JourneyDetailScreen({required this.args, super.key});
 
@@ -28,22 +28,24 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
   final Set<int> _expanded = <int>{0};
 
   String get _shareText {
-    final j = widget.args.journey;
-    final lines = <String>['Journey: ${j.startClock} → ${j.arrivalClock}'];
-    for (final leg in j.legs) {
+    final journey = widget.args.journey;
+    final lines = <String>[
+      'Journey: ${journey.startClock} → ${journey.arrivalClock}',
+    ];
+    for (final leg in journey.legs) {
       lines.add(
         'Take ${leg.routeName} from ${leg.fromName} to ${leg.toName}'
         ' (${leg.departureClock} → ${leg.arrivalClock})',
       );
     }
-    if (j.transferWalk != null && j.transferWalk!.walkMeters > 0) {
+    if (journey.transferWalk != null && journey.transferWalk!.walkMeters > 0) {
       lines.add(
-        'Walk ${Departures.formatWalkDistance(j.transferWalk!.walkMeters)} '
-        'to ${j.transferWalk!.toName}',
+        'Walk ${Departures.formatWalkDistance(journey.transferWalk!.walkMeters)} '
+        'to ${journey.transferWalk!.toName}',
       );
     }
     lines.add(
-      'Total: ~${Departures.formatMinutes(j.estimatedMinutes)} · Rs ${j.totalFare}',
+      'Total: ~${Departures.formatMinutes(journey.estimatedMinutes)} · Rs ${journey.totalFare}',
     );
     return lines.join('\n');
   }
@@ -51,100 +53,58 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final journey = widget.args.journey;
+    final title = journey.transfers == 0
+        ? 'Direct'
+        : '${journey.transfers} Transfer${journey.transfers == 1 ? '' : 's'}';
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
+            AppPageHeader(
+              title: title,
+              subtitle:
+                  '${journey.startClock} → ${journey.arrivalClock} · Scheduled',
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 36,
+              trailing: AppGlassButton(
+                icon: AppIcons.share,
+                tooltip: 'Share journey',
+                size: 38,
+                iconSize: 20,
+                onPressed: () => Share.share(_shareText),
               ),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceSm,
-              ),
-              child: Column(
+              bottom: Wrap(
+                spacing: Tokens.spaceSm,
+                runSpacing: Tokens.spaceSm,
                 children: [
-                  Row(
-                    children: [
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pop(),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.arrowLeft,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          journey.transfers == 0 ? 'Direct' : '1 Transfer',
-                          style: const TextStyle(
-                            fontSize: Tokens.fontXl,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      AppPressable(
-                        onPressed: () => Share.share(_shareText),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.share,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                  _HeaderChip(
+                    icon: AppIcons.directionsWalk,
+                    label:
+                        '${journey.totalStops} stops · ${journey.transfers} change${journey.transfers == 1 ? '' : 's'}',
                   ),
-                  const SizedBox(height: Tokens.spaceSm),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${journey.startClock} → ${journey.arrivalClock}',
-                        style: const TextStyle(
-                          fontSize: Tokens.fontMd,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xE6FFFFFF),
-                        ),
-                      ),
-                      const Text(
-                        'Scheduled',
-                        style: TextStyle(
-                          fontSize: Tokens.fontXs,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  _HeaderChip(
+                    icon: AppIcons.send,
+                    label: 'Rs ${journey.totalFare}',
                   ),
                 ],
               ),
             ),
-
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: Tokens.spaceXl),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  Tokens.spaceMd,
+                  AppSpacing.screen,
+                  Tokens.spaceXl,
+                ),
                 children: [
-                  // stats
-                  Padding(
-                    padding: const EdgeInsets.all(Tokens.spaceMd),
+                  AppCard(
+                    radius: Tokens.shapeXl,
+                    elevated: true,
+                    padding: const EdgeInsets.all(Tokens.spaceSm),
                     child: Row(
                       children: [
                         StatBox(
@@ -152,117 +112,93 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
                           value:
                               '~${Departures.formatMinutes(journey.estimatedMinutes)}',
                           color: palette.primary,
+                          icon: AppIcons.clock,
                         ),
                         const SizedBox(width: Tokens.spaceSm),
                         StatBox(
                           label: 'CHANGES',
                           value: '${journey.transfers}',
-                          color: palette.primary,
+                          color: palette.primaryBright,
+                          icon: AppIcons.routes,
                         ),
                         const SizedBox(width: Tokens.spaceSm),
                         StatBox(
                           label: 'FARE',
                           value: 'Rs ${journey.totalFare}',
                           color: palette.primary,
+                          icon: AppIcons.send,
                         ),
                       ],
                     ),
                   ),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.screen,
-                    ),
-                    child: SectionHeader(
-                      text: 'Step-by-step directions',
-                      margin: EdgeInsets.only(bottom: Tokens.spaceSm),
-                    ),
-                  ),
-
-                  // legs
+                  const SizedBox(height: Tokens.spaceLg),
+                  const SectionHeader(text: 'Step-by-step directions'),
+                  const SizedBox(height: Tokens.spaceSm),
                   for (var i = 0; i < journey.legs.length; i++)
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.screen,
-                        vertical: Tokens.spaceXs,
-                      ),
+                      padding: const EdgeInsets.only(bottom: Tokens.spaceSm),
                       child: _LegCard(
                         leg: journey.legs[i],
                         index: i + 1,
                         expanded: _expanded.contains(i),
                         onToggle: () => setState(() {
-                          if (_expanded.contains(i)) {
+                          if (!_expanded.add(i)) {
                             _expanded.remove(i);
-                          } else {
-                            _expanded.add(i);
                           }
                         }),
                       ),
                     ),
-
                   if (journey.transferWalk != null &&
                       journey.transferWalk!.walkMeters > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.screen,
-                        Tokens.spaceSm,
-                        AppSpacing.screen,
-                        Tokens.spaceXs,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(Tokens.spaceMd),
-                        decoration: BoxDecoration(
-                          color: palette.card,
-                          borderRadius: BorderRadius.circular(Tokens.radiusLg),
-                          border: Border.all(color: palette.border),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
+                    AppCard(
+                      radius: Tokens.shapeXl,
+                      elevated: true,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: palette.primary.withValues(alpha: .12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
                               AppIcons.directionsWalk,
-                              size: 20,
+                              size: 19,
                               color: palette.primary,
                             ),
-                            const SizedBox(width: Tokens.spaceSm),
-                            Expanded(
-                              child: Text(
-                                'Transfer walk to ${journey.transferWalk!.toName} · '
-                                '${Departures.formatWalkDistance(journey.transferWalk!.walkMeters)}',
-                                style: TextStyle(
-                                  fontSize: Tokens.fontMd,
-                                  color: palette.text,
-                                ),
+                          ),
+                          const SizedBox(width: Tokens.spaceSm),
+                          Expanded(
+                            child: Text(
+                              'Transfer walk to ${journey.transferWalk!.toName} · '
+                              '${Departures.formatWalkDistance(journey.transferWalk!.walkMeters)}',
+                              style: TextStyle(
+                                fontSize: Tokens.fontMd,
+                                fontWeight: FontWeight.w600,
+                                color: palette.text,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-
-                  // travel tips
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.screen,
-                      Tokens.spaceMd,
-                      AppSpacing.screen,
-                      0,
-                    ),
+                  const SizedBox(height: Tokens.spaceLg),
+                  AppCard(
+                    radius: Tokens.shapeXl,
+                    elevated: true,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SectionHeader(
-                          text: 'Travel Tips',
-                          margin: EdgeInsets.only(bottom: Tokens.spaceSm),
-                        ),
+                        const SectionHeader(text: 'Travel Tips'),
+                        const SizedBox(height: Tokens.spaceSm),
                         _tip(
-                          palette,
                           'Times are estimates — allow extra time for connections',
                         ),
                         _tip(
-                          palette,
                           'Fares shown are per leg — confirm with the conductor',
                         ),
-                        _tip(palette, 'Tap for full route details'),
+                        _tip('Tap a leg for its full stop sequence'),
                       ],
                     ),
                   ),
@@ -275,24 +211,66 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
     );
   }
 
-  Widget _tip(AppPalette palette, String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('• ', style: TextStyle(color: palette.primary)),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: Tokens.fontSm,
-              color: palette.textSecondary,
+  Widget _tip(String text) {
+    final palette = AppPaletteScope.paletteOf(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(AppIcons.check, size: 14, color: palette.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: Tokens.fontSm,
+                height: 1.4,
+                color: palette.textSecondary,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .16),
+        borderRadius: BorderRadius.circular(Tokens.shapePill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: Tokens.fontSm,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LegCard extends StatelessWidget {
@@ -315,26 +293,35 @@ class _LegCard extends StatelessWidget {
     final color = parseRouteColor(leg.color);
 
     return AppCard(
+      radius: Tokens.shapeXl,
+      elevated: true,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppPressable(
             onPressed: onToggle,
-            child: Padding(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(Tokens.shapeXl),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: color, width: 5)),
+              ),
               padding: const EdgeInsets.all(Tokens.spaceMd),
               child: Row(
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.20),
-                      borderRadius: BorderRadius.circular(Tokens.radiusMd),
+                      color: color.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(Tokens.shapeMd),
+                      border: Border.all(color: color.withValues(alpha: .28)),
                     ),
                     child: BusIcon(
                       category: route?.category ?? 'bus',
-                      size: 24,
+                      size: 26,
                       color: color,
                     ),
                   ),
@@ -344,23 +331,26 @@ class _LegCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${leg.departureClock} → ${leg.arrivalClock}',
+                          leg.routeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: Tokens.fontSm,
+                            fontSize: Tokens.fontBase,
                             fontWeight: FontWeight.w800,
                             color: palette.text,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
-                          'Take ${leg.routeName} · ${leg.stopsTravelled} stops',
+                          '${leg.departureClock} → ${leg.arrivalClock} · ${leg.stopsTravelled} stops',
                           style: TextStyle(
-                            fontSize: Tokens.fontMd,
+                            fontSize: Tokens.fontSm,
                             fontWeight: FontWeight.w600,
-                            color: palette.text,
+                            color: palette.textSecondary,
                           ),
                         ),
                         Text(
-                          leg.fromName,
+                          '${leg.fromName} → ${leg.toName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -379,8 +369,13 @@ class _LegCard extends StatelessWidget {
               ),
             ),
           ),
-          if (expanded)
-            Padding(
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 220),
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Padding(
               padding: const EdgeInsets.fromLTRB(
                 Tokens.spaceMd,
                 0,
@@ -389,14 +384,18 @@ class _LegCard extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  for (final name in leg.stopNames)
+                  for (var i = 0; i < leg.stopNames.length; i++)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
                           Container(
-                            width: 6,
-                            height: 6,
+                            width: i == 0 || i == leg.stopNames.length - 1
+                                ? 10
+                                : 7,
+                            height: i == 0 || i == leg.stopNames.length - 1
+                                ? 10
+                                : 7,
                             decoration: BoxDecoration(
                               color: color,
                               shape: BoxShape.circle,
@@ -405,9 +404,13 @@ class _LegCard extends StatelessWidget {
                           const SizedBox(width: Tokens.spaceSm),
                           Expanded(
                             child: Text(
-                              name,
+                              leg.stopNames[i],
                               style: TextStyle(
                                 fontSize: Tokens.fontSm,
+                                fontWeight:
+                                    i == 0 || i == leg.stopNames.length - 1
+                                    ? FontWeight.w800
+                                    : FontWeight.w500,
                                 color: palette.text,
                               ),
                             ),
@@ -418,6 +421,7 @@ class _LegCard extends StatelessWidget {
                 ],
               ),
             ),
+          ),
         ],
       ),
     );

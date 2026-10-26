@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_palette.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../core/services/feedback_service.dart';
 import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 
-/// FeedbackScreen (Metro module 1082).
-///
-/// The original wrote to the Firestore top-level collection `feedback` with
-/// fields `name`, `email`, `location`, `type`, `comment`, `platform:'android'`
-/// and `createdAt: serverTimestamp()`. The rebuild sends the same payload to a
-/// configurable REST backend (see `.env.example`) and keeps it working offline.
+/// FeedbackScreen — optional message form for support and data corrections.
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({super.key});
 
@@ -33,15 +29,24 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     (label: 'Suggestion', value: 'suggestion'),
     (label: 'Complaint', value: 'complaint'),
     (label: 'Feature Request', value: 'feature'),
-    (label: 'Route / Stop Data Correction', value: 'data'),
+    (label: 'Data Correction', value: 'data'),
     (label: 'Other', value: 'other'),
   ];
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _location.dispose();
+    _comment.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (_submitting) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
-    final ok = await FeedbackService.instance.submit(
+    final sent = await FeedbackService.instance.submit(
       FeedbackPayload(
         name: _name.text.trim(),
         email: _email.text.trim(),
@@ -55,9 +60,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(ok ? 'Thank you!' : 'Could not send feedback'),
+        title: Text(sent ? 'Thank you!' : 'Could not send feedback'),
         content: Text(
-          ok
+          sent
               ? 'Your feedback has been sent.'
               : 'Please check your connection and try again.',
         ),
@@ -65,7 +70,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              if (ok) Navigator.of(context).pop();
+              if (sent) Navigator.of(context).pop();
             },
             child: const Text('OK'),
           ),
@@ -76,72 +81,27 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
-
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
-              ),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceSm,
-              ),
-              child: Row(
-                children: [
-                  AppPressable(
-                    onPressed: () => Navigator.of(context).pop(),
-                    borderless: true,
-                    rippleColor: Colors.white,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        AppIcons.arrowLeft,
-                        size: 24,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Send Feedback',
-                          style: TextStyle(
-                            fontSize: Tokens.fontXl,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          'We read every message',
-                          style: TextStyle(
-                            fontSize: Tokens.fontSm,
-                            color: Color(0xE6FFFFFF),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            const AppPageHeader(
+              title: 'Send Feedback',
+              subtitle: 'We read every message',
+              bottomRadius: 36,
             ),
-
             Expanded(
               child: Form(
                 key: _formKey,
                 child: ListView(
                   key: const Key('feedback-form-list'),
-                  padding: const EdgeInsets.all(Tokens.spaceMd),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    Tokens.spaceMd,
+                    AppSpacing.screen,
+                    Tokens.spaceXl,
+                  ),
                   children: [
                     _Field(
                       controller: _name,
@@ -165,12 +125,19 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       required: true,
                     ),
                     const SizedBox(height: Tokens.spaceMd),
-                    _Dropdown(
-                      label: 'Type',
-                      value: _type,
-                      items: _types,
-                      onChanged: (v) =>
-                          setState(() => _type = v ?? 'suggestion'),
+                    const Text('Type'),
+                    const SizedBox(height: Tokens.spaceSm),
+                    Wrap(
+                      spacing: Tokens.spaceSm,
+                      runSpacing: Tokens.spaceSm,
+                      children: [
+                        for (final type in _types)
+                          _TypeChip(
+                            label: type.label,
+                            selected: _type == type.value,
+                            onTap: () => setState(() => _type = type.value),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: Tokens.spaceMd),
                     _Field(
@@ -178,13 +145,15 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                       label: 'Comment',
                       hint: 'Tell us what happened',
                       required: true,
-                      maxLines: 4,
+                      maxLines: 5,
                     ),
                     const SizedBox(height: Tokens.spaceLg),
                     AppButton(
                       key: const Key('feedback-submit'),
-                      label: 'Submit',
+                      label: _submitting ? 'Sending…' : 'Submit',
                       enabled: !_submitting,
+                      loading: _submitting,
+                      icon: _submitting ? null : AppIcons.send,
                       onPressed: _submit,
                     ),
                   ],
@@ -221,30 +190,24 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The original renders the label and the required marker as two
-        // sibling Texts: [label]['' | ' *'].
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: Tokens.fontSm,
-                fontWeight: FontWeight.w700,
-                color: palette.text,
-              ),
-            ),
-            Text(
-              required ? ' *' : '',
-              style: TextStyle(
-                fontSize: Tokens.fontSm,
-                fontWeight: FontWeight.w700,
-                color: palette.text,
-              ),
-            ),
-          ],
+        Text.rich(
+          TextSpan(
+            text: label,
+            children: [
+              if (required)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+            ],
+          ),
+          style: TextStyle(
+            fontSize: Tokens.fontSm,
+            fontWeight: FontWeight.w800,
+            color: palette.text,
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -259,60 +222,55 @@ class _Field extends StatelessWidget {
             }
             return null;
           },
-          decoration: InputDecoration(
-            hintText: hint,
-            errorStyle: const TextStyle(
-              color: Color(0xFFC62828),
-              fontSize: Tokens.fontXs,
-            ),
-          ),
+          decoration: InputDecoration(hintText: hint),
         ),
       ],
     );
   }
 }
 
-class _Dropdown extends StatelessWidget {
-  const _Dropdown({
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({
     required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
+    required this.selected,
+    required this.onTap,
   });
 
   final String label;
-  final String value;
-  final List<({String label, String value})> items;
-  final ValueChanged<String?> onChanged;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
+    return AppPressable(
+      onPressed: onTap,
+      selected: selected,
+      semanticLabel: 'Feedback type: $label',
+      borderRadius: BorderRadius.circular(Tokens.shapePill),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Tokens.spaceSm,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? palette.primary : palette.surfaceTint,
+          borderRadius: BorderRadius.circular(Tokens.shapePill),
+          border: Border.all(
+            color: selected ? palette.primary : palette.border,
+          ),
+        ),
+        child: Text(
           label,
           style: TextStyle(
             fontSize: Tokens.fontSm,
-            fontWeight: FontWeight.w700,
-            color: palette.text,
+            fontWeight: FontWeight.w800,
+            color: selected ? palette.onPrimary : palette.textSecondary,
           ),
         ),
-        const SizedBox(height: 4),
-        DropdownButtonFormField<String>(
-          initialValue: value,
-          isExpanded: true,
-          items: items
-              .map(
-                (t) => DropdownMenuItem(value: t.value, child: Text(t.label)),
-              )
-              .toList(),
-          onChanged: onChanged,
-          validator: (v) => (v == null || v.isEmpty) ? 'Select a type' : null,
-          decoration: const InputDecoration(),
-        ),
-      ],
+      ),
     );
   }
 }

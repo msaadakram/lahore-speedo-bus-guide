@@ -6,7 +6,8 @@ import '../../app/theme/app_spacing.dart';
 import '../../app/theme/app_tokens.dart';
 import '../widgets/app_icons.dart';
 
-/// Recreates React Native's `Pressable` ripple behaviour in Material terms.
+/// Recreates React Native's `Pressable` behaviour with Material ripple, while
+/// exposing proper button semantics to accessibility services.
 class AppPressable extends StatelessWidget {
   const AppPressable({
     required this.onPressed,
@@ -15,6 +16,9 @@ class AppPressable extends StatelessWidget {
     this.rippleColor,
     this.borderless = true,
     this.disabled = false,
+    this.selected = false,
+    this.semanticLabel,
+    this.borderRadius,
     super.key,
   });
 
@@ -24,28 +28,108 @@ class AppPressable extends StatelessWidget {
   final Color? rippleColor;
   final bool borderless;
   final bool disabled;
+  final bool selected;
+  final String? semanticLabel;
+  final BorderRadius? borderRadius;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
     final enabled = onPressed != null && !disabled;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onPressed : null,
-        borderRadius: BorderRadius.circular(Tokens.shapeMd),
-        splashColor: (rippleColor ?? palette.primary).withValues(alpha: 0.16),
-        highlightColor: (rippleColor ?? palette.primary).withValues(
-          alpha: 0.08,
+    final radius = borderRadius ?? BorderRadius.circular(Tokens.shapeMd);
+
+    return Semantics(
+      enabled: enabled,
+      button: true,
+      selected: selected,
+      label: semanticLabel,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          customBorder: RoundedRectangleBorder(borderRadius: radius),
+          splashColor: (rippleColor ?? palette.primary).withValues(alpha: .14),
+          highlightColor: (rippleColor ?? palette.primary).withValues(
+            alpha: .08,
+          ),
+          child: Padding(padding: style ?? EdgeInsets.zero, child: child),
         ),
-        child: Padding(padding: style ?? EdgeInsets.zero, child: child),
       ),
     );
   }
 }
 
-/// The in-page hero header. It now carries the signature green gradient of the
-/// reference artwork, with a soft drop shadow so it sits above the canvas.
+/// The shared canvas used behind every screen. It keeps the tab surfaces tied
+/// to the same soft vertical gradient instead of a flat scaffold colour.
+class AppCanvas extends StatelessWidget {
+  const AppCanvas({required this.child, this.safeArea = false, super.key});
+
+  final Widget child;
+  final bool safeArea;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPaletteScope.paletteOf(context);
+    final content = DecoratedBox(
+      decoration: BoxDecoration(gradient: palette.canvasGradient),
+      child: child,
+    );
+    return safeArea ? SafeArea(child: content) : content;
+  }
+}
+
+/// A translucent circular action button for coloured hero headers.
+class AppGlassButton extends StatelessWidget {
+  const AppGlassButton({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+    this.size = 42,
+    this.iconSize = 22,
+    super.key,
+  });
+
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final String? tooltip;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    final button = AppPressable(
+      onPressed: onPressed,
+      borderless: true,
+      rippleColor: Colors.white,
+      borderRadius: BorderRadius.circular(size / 2),
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: enabled ? .20 : .12),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: .18)),
+        ),
+        child: Icon(
+          icon,
+          size: iconSize,
+          color: Colors.white.withValues(alpha: enabled ? 1 : .58),
+        ),
+      ),
+    );
+
+    if (tooltip == null) return button;
+    return Tooltip(message: tooltip!, child: button);
+  }
+}
+
+/// The in-page hero header used by every screen.
+///
+/// The curved bottom edge and diffuse green shadow turn the recovered flat
+/// header into a modern, branded surface while keeping the original copy and
+/// hidden native app-bar pattern.
 class AppPageHeader extends StatelessWidget {
   const AppPageHeader({
     required this.title,
@@ -56,6 +140,9 @@ class AppPageHeader extends StatelessWidget {
     this.titleStyle,
     this.gradient,
     this.elevated = true,
+    this.bottom,
+    this.bottomRadius = Tokens.shapeLg,
+    this.padding,
     super.key,
   });
 
@@ -67,6 +154,9 @@ class AppPageHeader extends StatelessWidget {
   final TextStyle? titleStyle;
   final Gradient? gradient;
   final bool elevated;
+  final Widget? bottom;
+  final double bottomRadius;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -94,58 +184,74 @@ class AppPageHeader extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: g,
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(bottomRadius),
+          ),
           boxShadow: elevated ? palette.softShadow : null,
         ),
-        padding: EdgeInsets.only(
-          left: AppSpacing.screen,
-          right: AppSpacing.screen,
-          top: insets.top + Tokens.spaceMd,
-          bottom: Tokens.spaceMd,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (onBack != null) ...[
-              _RoundIconButton(
-                icon: AppIcons.arrowLeft,
-                onPressed: onBack,
-                tooltip: 'Back',
-              ),
-              const SizedBox(width: Tokens.spaceSm),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style:
-                        titleStyle ??
-                        const TextStyle(
-                          fontSize: Tokens.fontXl,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                          height: 1.2,
-                          color: Colors.white,
-                        ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: Tokens.fontMd,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xE6FFFFFF),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+        padding:
+            padding ??
+            EdgeInsets.only(
+              left: AppSpacing.screen,
+              right: AppSpacing.screen,
+              top: insets.top + Tokens.spaceMd,
+              bottom: bottom == null ? Tokens.spaceLg : Tokens.spaceMd,
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: Tokens.spaceSm),
-              trailing!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (onBack != null) ...[
+                  AppGlassButton(
+                    icon: AppIcons.arrowLeft,
+                    onPressed: onBack,
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: Tokens.spaceSm),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style:
+                            titleStyle ??
+                            const TextStyle(
+                              fontSize: Tokens.fontXxl,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                              height: 1.15,
+                              color: Colors.white,
+                            ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: Tokens.fontMd,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                            color: Color(0xE6FFFFFF),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: Tokens.spaceSm),
+                  trailing!,
+                ],
+              ],
+            ),
+            if (bottom != null) ...[
+              const SizedBox(height: Tokens.spaceMd),
+              bottom!,
             ],
           ],
         ),
@@ -154,40 +260,7 @@ class AppPageHeader extends StatelessWidget {
   }
 }
 
-/// A soft, translucent circular button for header actions.
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
-    required this.icon,
-    required this.onPressed,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPressable(
-      onPressed: onPressed,
-      borderless: true,
-      rippleColor: Colors.white,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.18),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 22, color: Colors.white),
-      ),
-    );
-  }
-}
-
-/// Bordered card — the app's only container style, now with a soft, diffuse,
-/// green-tinted shadow like the reference art.
+/// Bordered card with the app's soft green elevation language.
 class AppCard extends StatelessWidget {
   const AppCard({
     required this.child,
@@ -196,7 +269,7 @@ class AppCard extends StatelessWidget {
     this.radius = Tokens.shapeLg,
     this.color,
     this.borderColor,
-    this.elevation = 0,
+    this.elevated = false,
     this.gradient,
     super.key,
   });
@@ -207,7 +280,7 @@ class AppCard extends StatelessWidget {
   final double radius;
   final Color? color;
   final Color? borderColor;
-  final double elevation;
+  final bool elevated;
   final Gradient? gradient;
 
   @override
@@ -220,15 +293,17 @@ class AppCard extends StatelessWidget {
         color: gradient == null ? bg : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: borderColor ?? palette.border),
-        boxShadow: elevation > 0 ? palette.softShadow : null,
+        border: Border.all(
+          color: borderColor ?? palette.border.withValues(alpha: .92),
+        ),
+        boxShadow: elevated ? palette.softShadow : null,
       ),
       child: Padding(padding: padding, child: child),
     );
   }
 }
 
-/// Primary pill button with the soft green gradient.
+/// Primary pill button with the signature green gradient.
 class AppButton extends StatelessWidget {
   const AppButton({
     required this.label,
@@ -238,6 +313,7 @@ class AppButton extends StatelessWidget {
     this.muted = false,
     this.expand = true,
     this.gradient,
+    this.loading = false,
     super.key,
   });
 
@@ -248,40 +324,60 @@ class AppButton extends StatelessWidget {
   final bool muted;
   final bool expand;
   final Gradient? gradient;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final fg = enabled
+    final active = enabled && !loading;
+    final fg = active
         ? (muted ? palette.primary : palette.onPrimary)
-        : palette.textSecondary;
-    final bg = enabled
+        : palette.textSecondary.withValues(alpha: .74);
+    final bg = active
         ? (muted ? palette.surfaceTint : palette.primary)
-        : palette.surfaceTint;
-    final g = enabled && !muted ? (gradient ?? palette.heroGradient) : null;
+        : palette.background.withValues(alpha: .74);
+    final g = active && !muted ? (gradient ?? palette.heroGradient) : null;
+    final borderColor = active
+        ? (muted ? palette.primary.withValues(alpha: .30) : palette.primary)
+        : palette.border;
 
     final content = Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (icon != null) ...[
+        if (loading) ...[
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(fg),
+            ),
+          ),
+          const SizedBox(width: Tokens.spaceSm),
+        ] else if (icon != null) ...[
           Icon(icon, size: 19, color: fg),
           const SizedBox(width: Tokens.spaceSm),
         ],
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: Tokens.fontBase,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.1,
-            color: fg,
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: Tokens.fontBase,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.1,
+              color: fg,
+            ),
           ),
         ),
       ],
     );
 
     return AppPressable(
-      onPressed: enabled ? onPressed : null,
+      onPressed: active ? onPressed : null,
+      borderRadius: BorderRadius.circular(Tokens.shapePill),
       child: Container(
         width: expand ? double.infinity : null,
         padding: const EdgeInsets.symmetric(
@@ -292,7 +388,8 @@ class AppButton extends StatelessWidget {
           color: g == null ? bg : null,
           gradient: g,
           borderRadius: BorderRadius.circular(Tokens.shapePill),
-          boxShadow: enabled && !muted ? palette.softShadow : null,
+          border: Border.all(color: borderColor),
+          boxShadow: active && !muted ? palette.softShadow : null,
         ),
         child: expand ? Center(child: content) : content,
       ),
@@ -316,6 +413,7 @@ class AppTextButton extends StatelessWidget {
     final palette = AppPaletteScope.paletteOf(context);
     return AppPressable(
       onPressed: onPressed,
+      borderRadius: BorderRadius.circular(Tokens.shapePill),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: Tokens.spaceMd,
@@ -325,8 +423,8 @@ class AppTextButton extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: Tokens.fontBase,
-            fontWeight: FontWeight.w700,
-            color: palette.primary,
+            fontWeight: FontWeight.w800,
+            color: onPressed == null ? palette.textSecondary : palette.primary,
           ),
         ),
       ),
@@ -334,7 +432,7 @@ class AppTextButton extends StatelessWidget {
   }
 }
 
-/// Filled button used on the coloured header blocks.
+/// Filled button used on coloured surfaces.
 class AppFilledDarkButton extends StatelessWidget {
   const AppFilledDarkButton({
     required this.label,
@@ -349,31 +447,12 @@ class AppFilledDarkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    return AppPressable(
+    return AppButton(
+      label: label,
       onPressed: onPressed,
-      rippleColor: Colors.white,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Tokens.spaceLg,
-          vertical: Tokens.spaceMd,
-        ),
-        decoration: BoxDecoration(
-          color: background ?? palette.primary,
-          borderRadius: BorderRadius.circular(Tokens.shapePill),
-          boxShadow: palette.softShadow,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: Tokens.fontBase,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+      gradient: background == null
+          ? null
+          : LinearGradient(colors: [background!, background!]),
     );
   }
 }
@@ -414,6 +493,7 @@ class EmptyState extends StatelessWidget {
   const EmptyState({
     required this.icon,
     required this.message,
+    this.title,
     this.action,
     this.tone,
     super.key,
@@ -421,50 +501,78 @@ class EmptyState extends StatelessWidget {
 
   final IconData icon;
   final String message;
+  final String? title;
   final Widget? action;
   final Color? tone;
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final c = tone ?? palette.textSecondary;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(Tokens.spaceXl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: palette.surfaceTint,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 34, color: c),
+    final c = tone ?? palette.primary;
+    final content = Padding(
+      padding: const EdgeInsets.all(Tokens.spaceXl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 82,
+            height: 82,
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: .12),
+              shape: BoxShape.circle,
+              border: Border.all(color: c.withValues(alpha: .20)),
             ),
+            child: Icon(icon, size: 36, color: c),
+          ),
+          if (title != null) ...[
             const SizedBox(height: Tokens.spaceMd),
             Text(
-              message,
+              title!,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: Tokens.fontBase,
-                height: 1.4,
-                color: palette.textSecondary,
+                fontSize: Tokens.fontLg,
+                fontWeight: FontWeight.w800,
+                color: palette.text,
               ),
             ),
-            if (action != null) ...[
-              const SizedBox(height: Tokens.spaceLg),
-              action!,
-            ],
           ],
-        ),
+          const SizedBox(height: Tokens.spaceSm),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: Tokens.fontMd,
+              height: 1.45,
+              color: palette.textSecondary,
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(height: Tokens.spaceLg),
+            action!,
+          ],
+        ],
       ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // In short slots (landscape, very large text), make the state
+        // scrollable instead of allowing a RenderFlex overflow.
+        if (!constraints.hasBoundedHeight) {
+          return Center(child: content);
+        }
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: content),
+          ),
+        );
+      },
     );
   }
 }
 
-/// Label / value box used on the route detail screen.
+/// Label / value box used on route and journey detail screens.
 class StatBox extends StatelessWidget {
   const StatBox({
     required this.label,
@@ -504,7 +612,7 @@ class StatBox extends StatelessWidget {
                   Icon(
                     icon,
                     size: 13,
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withValues(alpha: .9),
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -516,7 +624,7 @@ class StatBox extends StatelessWidget {
                     style: TextStyle(
                       fontSize: Tokens.fontXs,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: .9),
                       letterSpacing: 0.6,
                     ),
                   ),

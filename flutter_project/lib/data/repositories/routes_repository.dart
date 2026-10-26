@@ -19,8 +19,8 @@ class RoutesRepository {
   List<RouteCategory> _categories = const [];
   Map<String, BusRoute> _routesById = <String, BusRoute>{};
   Map<String, BusStop> _stopsById = <String, BusStop>{};
-  late List<BusStop> _allStops;
-  late Map<String, List<String>> _stopRoutes;
+  List<BusStop> _allStops = const [];
+  Map<String, List<String>> _stopRoutes = <String, List<String>>{};
 
   bool get isLoaded => _loaded;
 
@@ -54,7 +54,9 @@ class RoutesRepository {
       }
     }
     _stopsById = stops;
-    _allStops = stops.values.toList()..sort((a, b) => a.name.compareTo(b.name));
+    _allStops = stops.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    _stopRoutes = stopRoutes;
     for (final e in stopRoutes.entries) {
       e.value.sort((a, b) {
         final ra = _routesById[a]!;
@@ -71,8 +73,11 @@ class RoutesRepository {
 
   BusRoute? routeById(String id) => _routesById[id];
   BusStop? stopById(String id) => _stopsById[id];
+
+  /// Safe before [ensureLoaded] completes: screens can render an empty state
+  /// instead of tripping a late-initialisation error.
   List<String> routesForStop(String stopId) =>
-      List.unmodifiable(_stopRoutes[stopId] ?? const []);
+      _loaded ? List.unmodifiable(_stopRoutes[stopId] ?? const []) : const [];
 
   RouteCategory? categoryByKey(String key) =>
       _categories.where((c) => c.key == key).firstOrNull;

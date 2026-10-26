@@ -16,7 +16,7 @@ decoded smali. See `../reverse_engineering/` for the full analysis.
 |---|---|
 | **Framework** | Flutter 3.47.5 / Dart 3.13.4 |
 | **Application ID** | `com.lahorebus` |
-| **Version** | `2.1.0+12` (mirrors the original `2.1` / `12`) |
+| **Version** | `2.1.0+13` (current Play build) |
 | **minSdk / targetSdk** | 24 / 36 (both identical to the original) |
 | **State management** | Riverpod |
 | **Maps** | `flutter_map` + OpenStreetMap tiles (no API key) |
@@ -98,7 +98,15 @@ directly from that image** (the dominant `#83A034` alone is 6.7 % of its pixels)
 
 Shape, elevation and typography follow the same source: 24–32 px radii, **pill**
 buttons, soft green-tinted shadows instead of the original's flat 1 px borders,
-and a vertical `heroGradient` (lit grass → deep forest) on every header.
+curved hero headers, elevated grouped cards and a vertical `heroGradient`
+(deep forest tones, tuned so white header copy passes AA contrast in both
+themes).
+
+The 2026 UI pass adds a rounded bottom navigation bar with an animated active
+pill, a lazy `IndexedStack` that preserves each tab's state, a three-state
+Appearance selector (System / Light / Dark), clearer journey and route cards,
+and a consistent empty/loading/error system. The original copy, offline dataset
+and interaction model remain unchanged.
 
 Full detail: `../reverse_engineering/design_system_green.md`.
 
@@ -187,7 +195,7 @@ Key on-device fixes:
 
 ```bash
 flutter analyze                   # 0 errors, 0 warnings
-flutter test                      # 45 tests
+flutter test                      # 58 tests
 flutter test integration_test     # on-device journeys (needs a device/emulator)
 dart format .                     # formatting
 ```
@@ -197,9 +205,11 @@ dart format .                     # formatting
 | Units | `test/widget_test.dart` | route model, Coord, the whole departure engine, route names & typed arguments |
 | Units | `test/theme_test.dart` | every recovered token, both palettes, `ThemeController` persistence and platform-follow behaviour |
 | Units | `test/repository_test.dart` | the bundled dataset: 28 routes, category counts (23/1/1/3), `categoryOf`, normalised stop index, haversine |
-| Units | `test/journey_test.dart` | `buildLeg` in both directions, `findBestTransfer` shared-stop and no-overlap branches |
-| Widgets | `test/widget_smoke_test.dart` | recovered on-screen copy per screen, placeholder/disabled states, section headers, the disclaimer, Dark Mode switch |
-| Journeys | `test/journeys_test.dart` | launch → all four tabs → Home; Home → Search → results; Dark Mode toggle; Schedule category switch |
+| Units | `test/journey_test.dart` | `buildLeg`, `findBestTransfer`, direct-first ranking, walking-transfer time and the no-phantom-leg invariant |
+| Widgets | `test/widget_smoke_test.dart` | recovered on-screen copy, placeholder/disabled states, grouped sections and the disclaimer |
+| Journeys | `test/journeys_test.dart` | launch → all four tabs; Search; Appearance switching; Schedule categories; large-text tab sweep |
+| Robustness | `test/journey_results_states_test.dart` | dataset-load failure → Retry → recovery on Journey Results |
+| Accessibility | `test/large_text_test.dart` | pushed route/journey/support screens at the maximum supported 1.4× text scale |
 | Integration | `integration_test/app_test.dart` | same journeys on a real device (`flutter test integration_test`) |
 
 ## 8. Android configuration
@@ -245,12 +255,13 @@ dart format .                     # formatting
 7. **`StatusBar` colour changes** are handled by the Flutter system chrome
    rather than `react-native-navigation-bar-color`; the effect is the same
    (the header block drives the bar colour per screen).
-8. **No golden-image CI.** `test/golden/` and `test/screenshots/` are not
-   shipped because the original APK cannot be run here (its native runtime is
-   in an ABI split that is not present in the base APK), so a pixel-diff
-   baseline could not be captured. Screen-level parity was verified from the
-   decompiled styles instead; `reverse_engineering/specs/*.md` holds the exact
-   values used.
+8. **Golden coverage is intentionally narrow.** `test/golden_test.dart`
+   pins the launch surface and the Home, Schedule and Settings tabs;
+   `tool/render_screens_test.dart` can regenerate wider light/dark references
+   locally. A pixel-perfect baseline of the original APK could not be captured
+   because its native runtime is in an ABI split that is not present in the
+   base APK. Screen-level parity is therefore verified from the decompiled
+   styles and the generated Flutter references.
 
 ## 10. Recovered / recreated / unrecoverable
 

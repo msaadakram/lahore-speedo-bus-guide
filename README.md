@@ -4,7 +4,7 @@ An offline companion app for the Lahore bus network — every route, stop and
 schedule in one place, with journey planning, live-style stop browsing, a
 nearby-stops finder and an offline map.
 
-Built with **Flutter 3.13** (Riverpod + GoRouter), package
+Built with **Flutter 3.47** (Riverpod + a typed custom navigator), package
 `com.lahorebus`, version 2.1 (build 13).
 
 ## Features

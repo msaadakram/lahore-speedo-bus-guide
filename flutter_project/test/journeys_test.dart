@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lahore_speedo_bus_guide/app/app.dart';
 import 'package:lahore_speedo_bus_guide/core/storage/preferences_store.dart';
 import 'package:lahore_speedo_bus_guide/data/repositories/routes_repository.dart';
+import 'package:lahore_speedo_bus_guide/shared/widgets/app_bottom_nav.dart';
 import 'package:lahore_speedo_bus_guide/shared/widgets/app_icons.dart';
 
 /// Full user journeys through the rebuilt app, matching the workflows that
@@ -59,7 +60,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.text('Settings'), findsWidgets);
-    expect(find.text('Dark Mode'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
 
     // Back to Home
     await tester.tap(find.text('Home'));
@@ -68,6 +69,32 @@ void main() {
     }
     expect(find.text('Every route, one tap away!'), findsOneWidget);
   });
+
+  testWidgets(
+    'every tab renders without layout overflow at a large font scale',
+    (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      await tester.binding.setSurfaceSize(const Size(420, 900));
+      addTearDown(() async {
+        tester.platformDispatcher.clearTextScaleFactorTestValue();
+        await tester.binding.setSurfaceSize(null);
+      });
+      await launchApp(tester);
+
+      expect(tester.takeException(), isNull);
+      for (final tab in const ['Nearby', 'Schedule', 'Settings', 'Home']) {
+        final tabButton = find.descendant(
+          of: find.byType(AppBottomNav),
+          matching: find.text(tab),
+        );
+        await tester.tap(tabButton, warnIfMissed: false);
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(tester.takeException(), isNull, reason: tab);
+      }
+    },
+  );
 
   testWidgets('Home → Search → RouteDetail → back', (tester) async {
     await launchApp(tester);
@@ -84,7 +111,7 @@ void main() {
     expect(find.textContaining('Speedo'), findsWidgets);
   });
 
-  testWidgets('Settings → Dark Mode toggle changes the palette', (
+  testWidgets('Settings → Appearance selector changes the palette', (
     tester,
   ) async {
     await launchApp(tester);
@@ -92,12 +119,12 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('Currently off'), findsOneWidget);
-    await tester.tap(find.byType(Switch));
+    expect(find.text('Light theme is active'), findsOneWidget);
+    await tester.tap(find.text('Dark').last);
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('Currently on'), findsOneWidget);
+    expect(find.text('Dark theme is active'), findsOneWidget);
   });
 
   testWidgets('Schedule → category switch reloads the route list', (

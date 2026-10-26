@@ -13,7 +13,8 @@ import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// JourneyResultsScreen (Metro module 1075).
+/// JourneyResultsScreen — ranked route options for a selected origin and
+/// destination.
 class JourneyResultsScreen extends ConsumerStatefulWidget {
   const JourneyResultsScreen({required this.args, super.key});
 
@@ -27,10 +28,10 @@ class JourneyResultsScreen extends ConsumerStatefulWidget {
 class _JourneyResultsScreenState extends ConsumerState<JourneyResultsScreen> {
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final data = ref.watch(routesDataProvider);
-    final journeys = data.valueOrNull == null
+    final failed = data.hasError;
+    final loading = data.isLoading && !failed;
+    final journeys = loading || failed
         ? const <Journey>[]
         : JourneyRepository.findJourneys(
             widget.args.fromKey,
@@ -38,87 +39,52 @@ class _JourneyResultsScreenState extends ConsumerState<JourneyResultsScreen> {
           );
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
-              ),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceSm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pop(),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.arrowLeft,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.args.fromName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: Tokens.fontLg,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              widget.args.toName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: Tokens.fontSm,
-                                color: Color(0xE6FFFFFF),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: Tokens.spaceSm),
-                  Text(
-                    '${journeys.length} ${journeys.length == 1 ? 'route' : 'routes'} found',
-                    style: const TextStyle(
-                      fontSize: Tokens.fontSm,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xE6FFFFFF),
-                    ),
-                  ),
-                ],
+            AppPageHeader(
+              title: widget.args.fromName,
+              subtitle: 'To ${widget.args.toName}',
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 36,
+              bottom: Text(
+                failed
+                    ? 'Route data unavailable'
+                    : loading
+                    ? 'Finding routes…'
+                    : '${journeys.length} ${journeys.length == 1 ? 'route' : 'routes'} found',
+                style: const TextStyle(
+                  fontSize: Tokens.fontSm,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
             ),
-
             Expanded(
-              child: journeys.isEmpty
+              child: failed
+                  ? EmptyState(
+                      icon: AppIcons.alertTriangle,
+                      title: 'Route data unavailable',
+                      message: 'The bundled route dataset could not be loaded on this device.',
+                      action: AppButton(
+                        label: 'Retry',
+                        icon: AppIcons.reload,
+                        expand: false,
+                        onPressed: () {
+                          ref.invalidate(routesDataProvider);
+                        },
+                      ),
+                    )
+                  : loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : journeys.isEmpty
                   ? const EmptyState(
                       icon: AppIcons.bus,
-                      message: 'No bus route found between these stops, even with a walking transfer.',
+                      title: 'No route found',
+                      message: 'No bus route connects these stops, even with a short walking transfer.',
                     )
-                  : ListView.builder(
+                  : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screen,
                         Tokens.spaceMd,
@@ -126,16 +92,18 @@ class _JourneyResultsScreenState extends ConsumerState<JourneyResultsScreen> {
                         Tokens.spaceXl,
                       ),
                       itemCount: journeys.length,
-                      itemBuilder: (context, i) => Padding(
-                        padding: const EdgeInsets.only(bottom: Tokens.spaceSm),
-                        child: _JourneyCard(
-                          journey: journeys[i],
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: Tokens.spaceSm),
+                      itemBuilder: (context, index) {
+                        final journey = journeys[index];
+                        return _JourneyCard(
+                          journey: journey,
                           onTap: () => Navigator.of(context).pushNamed(
                             Routes.journeyDetail,
-                            arguments: JourneyDetailArgs(journey: journeys[i]),
+                            arguments: JourneyDetailArgs(journey: journey),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -154,21 +122,17 @@ class _JourneyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final route = RoutesRepository.instance.routeById(
-      journey.legs.first.routeId,
-    );
     final first = journey.legs.first;
-    final wait = first.waitMinutes;
+    final transferLabel = journey.transfers == 0
+        ? 'Direct'
+        : '${journey.transfers} transfer';
 
-    return AppPressable(
-      onPressed: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Tokens.spaceMd),
-        decoration: BoxDecoration(
-          color: palette.card,
-          borderRadius: BorderRadius.circular(Tokens.radiusLg),
-          border: Border.all(color: palette.border),
-        ),
+    return AppCard(
+      radius: Tokens.shapeXl,
+      elevated: true,
+      child: AppPressable(
+        onPressed: onTap,
+        borderRadius: BorderRadius.circular(Tokens.shapeXl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -177,106 +141,147 @@ class _JourneyCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: Tokens.spaceSm,
-                    vertical: 3,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: palette.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(Tokens.radiusFull),
+                    color: palette.primary.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(Tokens.shapePill),
                   ),
                   child: Text(
-                    journey.transfers == 0
-                        ? 'Direct'
-                        : '${journey.transfers} transfer',
+                    transferLabel,
                     style: TextStyle(
                       fontSize: Tokens.fontSm,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: palette.primary,
                     ),
                   ),
                 ),
                 const Spacer(),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '~${Departures.formatMinutes(journey.estimatedMinutes)}',
+                      style: TextStyle(
+                        fontSize: Tokens.fontLg,
+                        fontWeight: FontWeight.w900,
+                        color: palette.text,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Tokens.spaceMd),
+            for (var i = 0; i < journey.legs.length; i++) ...[
+              _LegSummary(leg: journey.legs[i]),
+              if (i != journey.legs.length - 1)
+                Icon(
+                  AppIcons.chevronDown,
+                  size: 16,
+                  color: palette.textSecondary,
+                ),
+            ],
+            if (journey.transferWalk != null &&
+                journey.transferWalk!.walkMeters > 0) ...[
+              const SizedBox(height: Tokens.spaceSm),
+              Row(
+                children: [
+                  Icon(
+                    AppIcons.directionsWalk,
+                    size: 16,
+                    color: palette.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Walk ${Departures.formatWalkDistance(journey.transferWalk!.walkMeters)} to ${journey.transferWalk!.toName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: Tokens.fontSm,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: Tokens.spaceMd),
+            Wrap(
+              spacing: Tokens.spaceSm,
+              runSpacing: Tokens.spaceSm,
+              children: [
+                _JourneyChip(
+                  icon: AppIcons.clock,
+                  label: 'Leave in ${first.waitMinutes} min',
+                ),
+                _JourneyChip(
+                  icon: AppIcons.stop,
+                  label: '${journey.totalStops} stops',
+                ),
+                _JourneyChip(
+                  icon: AppIcons.send,
+                  label: 'Rs ${journey.totalFare}',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LegSummary extends StatelessWidget {
+  const _LegSummary({required this.leg});
+
+  final Leg leg;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPaletteScope.paletteOf(context);
+    final route = RoutesRepository.instance.routeById(leg.routeId);
+    final color = parseRouteColor(leg.color);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .14),
+              borderRadius: BorderRadius.circular(Tokens.shapeSm),
+              border: Border.all(color: color.withValues(alpha: .28)),
+            ),
+            child: BusIcon(
+              category: route?.category ?? 'bus',
+              size: 20,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: Tokens.spaceSm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '~${Departures.formatMinutes(journey.estimatedMinutes)}',
+                  leg.routeName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: Tokens.fontMd,
                     fontWeight: FontWeight.w800,
                     color: palette.text,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: Tokens.spaceSm),
-            Row(
-              children: [
-                if (route != null)
-                  BusIcon(
-                    category: route.category,
-                    size: 26,
-                    color: parseRouteColor(route.color),
-                  ),
-                const SizedBox(width: Tokens.spaceSm),
-                Expanded(
-                  child: Text(
-                    'Leave in $wait min · ${first.fromName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: Tokens.fontMd,
-                      fontWeight: FontWeight.w600,
-                      color: palette.text,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            for (final leg in journey.legs) ...[
-              Text(
-                leg.fromName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: Tokens.fontSm,
-                  color: palette.textSecondary,
-                ),
-              ),
-            ],
-            Text(
-              journey.legs.last.toName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: Tokens.fontSm,
-                fontWeight: FontWeight.w600,
-                color: palette.text,
-              ),
-            ),
-            if (journey.transferWalk != null &&
-                journey.transferWalk!.walkMeters > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Transfer walk to ${journey.transferWalk!.toName} · '
-                '${Departures.formatWalkDistance(journey.transferWalk!.walkMeters)}',
-                style: TextStyle(
-                  fontSize: Tokens.fontSm,
-                  color: palette.textSecondary,
-                ),
-              ),
-            ],
-            const SizedBox(height: Tokens.spaceSm),
-            Row(
-              children: [
                 Text(
-                  'Rs ${journey.totalFare}',
-                  style: TextStyle(
-                    fontSize: Tokens.fontSm,
-                    fontWeight: FontWeight.w700,
-                    color: palette.primary,
-                  ),
-                ),
-                const SizedBox(width: Tokens.spaceMd),
-                Text(
-                  '${journey.totalStops} stops',
+                  '${leg.fromName} → ${leg.toName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: Tokens.fontSm,
                     color: palette.textSecondary,
@@ -284,8 +289,50 @@ class _JourneyCard extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          Text(
+            '${leg.stopsTravelled} stops',
+            style: TextStyle(
+              fontSize: Tokens.fontXs,
+              fontWeight: FontWeight.w800,
+              color: palette.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyChip extends StatelessWidget {
+  const _JourneyChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPaletteScope.paletteOf(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: palette.surfaceTint,
+        borderRadius: BorderRadius.circular(Tokens.shapePill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: palette.primary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: Tokens.fontXs,
+              fontWeight: FontWeight.w700,
+              color: palette.text,
+            ),
+          ),
+        ],
       ),
     );
   }

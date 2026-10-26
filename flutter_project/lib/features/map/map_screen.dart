@@ -4,21 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/router.dart';
 import '../../app/theme/app_palette.dart';
 import '../../app/theme/app_tokens.dart';
+import '../../core/services/link_launcher.dart';
 import '../../data/repositories/routes_repository.dart';
 import '../../data/repositories/stop_repository.dart';
 import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// MapScreen (Metro module 1033).
-///
-/// The original used `react-native-maps`; the rebuild uses `flutter_map` with
-/// OpenStreetMap tiles so no Google Maps API key is required.
+/// MapScreen — OpenStreetMap-powered route and stop viewer.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({required this.args, super.key});
 
@@ -28,13 +25,11 @@ class MapScreen extends ConsumerStatefulWidget {
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen>
-    with SingleTickerProviderStateMixin {
+class _MapScreenState extends ConsumerState<MapScreen> {
   late final MapController _controller;
   String _mapType = 'standard';
   int? _selectedStopIndex;
 
-  /// Lahore, ~31.55/74.34 with a delta of 0.2.
   static const _lahoreInitial = LatLng(31.5497, 74.3436);
 
   List<_MapStop> get _stops {
@@ -42,7 +37,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final route = RoutesRepository.instance.routeById(widget.args.routeId!);
       if (route != null) {
         return [
-          for (var i = 0; i < route.coords.length; i++)
+          for (
+            var i = 0;
+            i < route.coords.length && i < route.stops.length;
+            i++
+          )
             _MapStop(
               name: route.stops[i],
               position: LatLng(
@@ -67,8 +66,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ];
       }
     }
-    return StopRepository.instance.geoStops.take(80).map((s) {
-      return _MapStop(name: s.name, position: LatLng(s.latitude, s.longitude));
+    return StopRepository.instance.geoStops.take(80).map((stop) {
+      return _MapStop(
+        name: stop.name,
+        position: LatLng(stop.latitude, stop.longitude),
+      );
     }).toList();
   }
 
@@ -81,27 +83,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void _fitAll() {
     if (_stops.isEmpty) return;
     final bounds = LatLngBounds.fromPoints(
-      _stops.map((s) => s.position).toList(),
+      _stops.map((stop) => stop.position).toList(),
     );
     _controller.fitCamera(
       CameraFit.bounds(
         bounds: bounds,
-        padding: const EdgeInsets.fromLTRB(60, 100, 60, 120),
+        padding: const EdgeInsets.fromLTRB(60, 90, 60, 120),
       ),
     );
   }
 
-  Future<void> _openDirections(double lat, double lng) async {
+  Future<void> _openDirections(double latitude, double longitude) async {
     final url = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=transit',
+      'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=transit',
     );
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    final opened = await openLink(url.toString());
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not open directions.')),
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final stops = _stops;
     final route = widget.args.routeId == null
         ? null
@@ -109,103 +117,59 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final lineColor = route == null
         ? palette.primary
         : parseRouteColor(route.color);
-    final selected = _selectedStopIndex == null
+    final selected =
+        _selectedStopIndex == null || _selectedStopIndex! >= stops.length
         ? null
         : stops[_selectedStopIndex!];
     final center = stops.isEmpty
         ? _lahoreInitial
         : LatLng(
-            stops.map((s) => s.position.latitude).reduce(math.min) +
-                (stops.map((s) => s.position.latitude).reduce(math.max) -
-                        stops
-                            .map((s) => s.position.latitude)
-                            .reduce(math.min)) /
-                    2,
-            stops.map((s) => s.position.longitude).reduce(math.min) +
-                (stops.map((s) => s.position.longitude).reduce(math.max) -
-                        stops
-                            .map((s) => s.position.longitude)
-                            .reduce(math.min)) /
-                    2,
+            (stops.map((stop) => stop.position.latitude).reduce(math.min) +
+                    stops
+                        .map((stop) => stop.position.latitude)
+                        .reduce(math.max)) /
+                2,
+            (stops.map((stop) => stop.position.longitude).reduce(math.min) +
+                    stops
+                        .map((stop) => stop.position.longitude)
+                        .reduce(math.max)) /
+                2,
           );
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            // ---------------------------------------------------- header
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
-              ),
+            AppPageHeader(
+              title: route?.name ?? widget.args.title ?? 'All Bus Stops',
+              subtitle: stops.length == 1
+                  ? 'Selected stop'
+                  : '${stops.length} stops on the map',
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 32,
               padding: EdgeInsets.only(
                 left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
+                right: Tokens.spaceSm,
+                top: MediaQuery.paddingOf(context).top + Tokens.spaceSm,
                 bottom: Tokens.spaceSm,
               ),
-              child: Row(
-                children: [
-                  AppPressable(
-                    onPressed: () => Navigator.of(context).pop(),
-                    borderless: true,
-                    rippleColor: Colors.white,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        AppIcons.arrowLeft,
-                        size: 24,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      route?.name ?? widget.args.title ?? 'All Bus Stops',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: Tokens.fontXl,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  // map type toggle
-                  AppPressable(
-                    onPressed: () => setState(
-                      () => _mapType = _mapType == 'standard'
-                          ? 'satellite'
-                          : 'standard',
-                    ),
-                    borderless: true,
-                    rippleColor: Colors.white,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Tokens.spaceSm,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0x33FFFFFF),
-                        borderRadius: BorderRadius.circular(Tokens.radiusFull),
-                      ),
-                      child: Text(
-                        _mapType == 'standard' ? 'Satellite' : 'Street',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: Tokens.fontXs,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              trailing: AppGlassButton(
+                icon: _mapType == 'standard'
+                    ? AppIcons.mapMarkerAlt
+                    : AppIcons.map,
+                tooltip: _mapType == 'standard'
+                    ? 'Switch to satellite'
+                    : 'Switch to street map',
+                size: 38,
+                iconSize: 20,
+                onPressed: () => setState(
+                  () => _mapType = _mapType == 'standard'
+                      ? 'satellite'
+                      : 'standard',
+                ),
               ),
             ),
-
-            // ---------------------------------------------------- map
             Expanded(
               child: Stack(
                 children: [
@@ -224,17 +188,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
                             : 'https://server.arcgisonline.com/ArcGIS/rest/services/'
                                   'World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                        userAgentPackageName:
-                            'com.lahorebus',
+                        userAgentPackageName: 'com.lahorebus',
                         maxZoom: 18,
                       ),
                       if (stops.length > 1)
                         PolylineLayer(
                           polylines: [
                             Polyline(
-                              points: stops.map((s) => s.position).toList(),
+                              points: stops
+                                  .map((stop) => stop.position)
+                                  .toList(),
                               strokeWidth: 5,
-                              color: lineColor.withValues(alpha: 0.75),
+                              color: lineColor.withValues(alpha: .78),
                             ),
                           ],
                         ),
@@ -243,22 +208,35 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           for (var i = 0; i < stops.length; i++)
                             Marker(
                               point: stops[i].position,
-                              width: 22,
-                              height: 22,
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedStopIndex = i),
-                                child: Container(
-                                  width: stops[i].isTerminus ? 22 : 14,
-                                  height: stops[i].isTerminus ? 22 : 14,
-                                  decoration: BoxDecoration(
-                                    color: stops[i].isTerminus
-                                        ? lineColor
-                                        : palette.card,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: lineColor,
-                                      width: 2,
+                              width: stops[i].isTerminus ? 24 : 18,
+                              height: stops[i].isTerminus ? 24 : 18,
+                              child: Semantics(
+                                label: stops[i].name,
+                                button: true,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      setState(() => _selectedStopIndex = i),
+                                  child: Container(
+                                    width: stops[i].isTerminus ? 24 : 14,
+                                    height: stops[i].isTerminus ? 24 : 14,
+                                    decoration: BoxDecoration(
+                                      color: stops[i].isTerminus
+                                          ? lineColor
+                                          : palette.card,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: lineColor,
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: .24,
+                                          ),
+                                          blurRadius: 7,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -266,13 +244,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             ),
                         ],
                       ),
+                      const _AttributionBadge(),
                     ],
                   ),
-
-                  // floating actions
                   Positioned(
                     right: Tokens.spaceMd,
-                    bottom: Tokens.spaceMd,
+                    bottom: Tokens.spaceLg,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -280,8 +257,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           icon: AppIcons.map,
                           label: 'Get Direction',
                           onTap: () {
-                            final c = _controller.camera.center;
-                            _openDirections(c.latitude, c.longitude);
+                            final cameraCenter = _controller.camera.center;
+                            _openDirections(
+                              cameraCenter.latitude,
+                              cameraCenter.longitude,
+                            );
                           },
                         ),
                         const SizedBox(height: Tokens.spaceSm),
@@ -293,8 +273,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                       ],
                     ),
                   ),
-
-                  // bottom sheet for the selected stop
                   if (selected != null)
                     Positioned(
                       left: 0,
@@ -338,6 +316,45 @@ class _MapStop {
   final bool isTerminus;
 }
 
+/// Compact, shrinkable OSM attribution. `SimpleAttributionWidget` uses a
+/// non-wrapping row that overflows at large font scales.
+class _AttributionBadge extends StatelessWidget {
+  const _AttributionBadge();
+
+  static const _copyrightUrl = 'https://www.openstreetmap.org/copyright';
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 4),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: GestureDetector(
+            onTap: () => openLink(_copyrightUrl),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .88),
+                borderRadius: BorderRadius.circular(Tokens.radiusSm),
+              ),
+              child: const Text(
+                '© OpenStreetMap contributors',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MapFab extends StatelessWidget {
   const _MapFab({required this.icon, required this.label, required this.onTap});
 
@@ -350,15 +367,17 @@ class _MapFab extends StatelessWidget {
     final palette = AppPaletteScope.paletteOf(context);
     return AppPressable(
       onPressed: onTap,
+      borderRadius: BorderRadius.circular(Tokens.shapePill),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: Tokens.spaceMd,
           vertical: Tokens.spaceSm,
         ),
         decoration: BoxDecoration(
-          color: palette.card,
-          borderRadius: BorderRadius.circular(Tokens.radiusFull),
+          color: palette.card.withValues(alpha: .96),
+          borderRadius: BorderRadius.circular(Tokens.shapePill),
           border: Border.all(color: palette.border),
+          boxShadow: palette.softShadow,
         ),
         child: Row(
           children: [
@@ -368,7 +387,7 @@ class _MapFab extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: Tokens.fontSm,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: palette.text,
               ),
             ),
@@ -401,8 +420,9 @@ class _StopSheet extends StatelessWidget {
         color: palette.card,
         border: Border(top: BorderSide(color: palette.border)),
         borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(Tokens.radiusXl),
+          top: Radius.circular(Tokens.shapeXl),
         ),
+        boxShadow: palette.liftedShadow,
       ),
       padding: const EdgeInsets.all(Tokens.spaceMd),
       child: SafeArea(
@@ -411,14 +431,27 @@ class _StopSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: palette.border,
+                  borderRadius: BorderRadius.circular(Tokens.shapePill),
+                ),
+              ),
+            ),
+            const SizedBox(height: Tokens.spaceSm),
             Row(
               children: [
                 Expanded(
                   child: Text(
                     stop.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: Tokens.fontLg,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                       color: palette.text,
                     ),
                   ),
@@ -426,6 +459,7 @@ class _StopSheet extends StatelessWidget {
                 AppPressable(
                   onPressed: onClose,
                   borderless: true,
+                  borderRadius: BorderRadius.circular(18),
                   child: Icon(
                     AppIcons.close,
                     size: 20,

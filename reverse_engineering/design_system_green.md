@@ -36,9 +36,11 @@ Secondary hues kept from the artwork: `khaki #939747`, `clay #957253`, `sand #D9
 
 | Name | Definition | Where |
 |---|---|---|
-| `heroGradient` | vertical `primaryBright → primary → accent` (stops 0 / .68 / 1) | every screen header, the primary button |
+| `heroGradient` | vertical `heroStart → heroEnd` (`forest → forestDeep` light, `moss → forestDeep` dark) | every screen header, the primary button |
 | `canvasGradient` | vertical `background → backgroundAlt` | page background behind the tabs |
 | `groundGradient` | `accentSoft → accent → primary` | reserved for dense/grounded content |
+
+The 2026 accessibility pass deliberately keeps hero text on deep forest anchors rather than the artwork's bright lime. White header copy is therefore bounded at roughly 5.8:1 in light mode and 10:1 in dark mode, above the WCAG AA 4.5:1 floor.
 
 The hero gradient reproduces the artwork's *lit-from-above* falloff: bright grass
 at the top, deepening into forest shadow at the foot.

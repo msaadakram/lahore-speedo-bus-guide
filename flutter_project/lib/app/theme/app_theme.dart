@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -36,10 +37,30 @@ class AppTheme {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: p.background,
-      // Edge-to-edge: the hero gradient runs behind the system bars.
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
+      visualDensity: VisualDensity.standard,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
+      // The custom navigation bar paints its own elevated surface.
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: p.card,
+        indicatorColor: p.primary.withValues(alpha: .16),
         elevation: 0,
+        height: 74,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: Tokens.fontXs,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w800
+                : FontWeight.w600,
+            color: states.contains(WidgetState.selected)
+                ? p.primary
+                : p.textSecondary,
+          ),
+        ),
       ),
       canvasColor: p.background,
       cardColor: p.card,
@@ -179,8 +200,21 @@ class AppTheme {
           borderRadius: BorderRadius.circular(Tokens.shapeMd),
         ),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: p.primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: p.primary,
+        linearTrackColor: p.surfaceTint,
+        circularTrackColor: p.surfaceTint.withValues(alpha: .68),
+      ),
       listTileTheme: ListTileThemeData(iconColor: p.primary, textColor: p.text),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStatePropertyAll(
+          p.primary.withValues(
+            alpha: brightness == Brightness.dark ? .48 : .34,
+          ),
+        ),
+        radius: const Radius.circular(Tokens.shapePill),
+        thickness: const WidgetStatePropertyAll(4),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: p.surfaceTint,
         side: BorderSide(color: p.border),

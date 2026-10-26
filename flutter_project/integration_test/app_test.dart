@@ -501,7 +501,11 @@ void main() {
       expect(find.text('No stops found'), findsNothing);
     });
 
-    testWidgets("renders at a large font scale", (tester) async {
+    testWidgets('renders at a large font scale', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(
+        () => tester.platformDispatcher.clearTextScaleFactorTestValue(),
+      );
       await launchApp(tester);
       await settle(tester);
       expect(tester.takeException(), isNull);

@@ -13,7 +13,7 @@ import '../../shared/widgets/app_icons.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/route_widgets.dart';
 
-/// StopDetailScreen (Metro module 1072).
+/// StopDetailScreen — every line that serves a stop and its next departures.
 class StopDetailScreen extends ConsumerStatefulWidget {
   const StopDetailScreen({required this.args, super.key});
 
@@ -26,122 +26,103 @@ class StopDetailScreen extends ConsumerStatefulWidget {
 class _StopDetailScreenState extends ConsumerState<StopDetailScreen> {
   @override
   Widget build(BuildContext context) {
-    final palette = AppPaletteScope.paletteOf(context);
-    final insets = MediaQuery.paddingOf(context);
     final data = ref.watch(routesDataProvider);
     final routes = data.valueOrNull?.routes ?? const <BusRoute>[];
     final key = widget.args.stopName.trim().toLowerCase();
+    if (data.isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: AppCanvas(
+          child: Column(
+            children: [
+              AppPageHeader(
+                title: widget.args.stopName,
+                subtitle: 'Loading lines…',
+                onBack: () => Navigator.of(context).pop(),
+                bottomRadius: 36,
+              ),
+              const Expanded(child: Center(child: CircularProgressIndicator())),
+            ],
+          ),
+        ),
+      );
+    }
+    if (data.hasError) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: AppCanvas(
+          child: Column(
+            children: [
+              AppPageHeader(
+                title: widget.args.stopName,
+                subtitle: 'Data unavailable',
+                onBack: () => Navigator.of(context).pop(),
+                bottomRadius: 36,
+              ),
+              Expanded(
+                child: EmptyState(
+                  icon: AppIcons.alertTriangle,
+                  title: 'Stop data unavailable',
+                  message:
+                      'The bundled stop and route dataset could not be loaded.',
+                  action: AppButton(
+                    label: 'Retry',
+                    icon: AppIcons.reload,
+                    expand: false,
+                    onPressed: () {
+                      ref.invalidate(routesDataProvider);
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final stop = StopRepository.instance.byKey(key);
     final lines = stop == null
         ? <BusRoute>[]
         : StopRepository.instance
               .routesFor(stop.id)
-              .map((r) => routes.where((x) => x.id == r.routeId).firstOrNull)
+              .map(
+                (ref) => routes
+                    .where((route) => route.id == ref.routeId)
+                    .firstOrNull,
+              )
               .whereType<BusRoute>()
               .toList();
 
     return Scaffold(
-      body: ColoredBox(
-        color: palette.background,
+      backgroundColor: Colors.transparent,
+      body: AppCanvas(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: palette.heroGradient,
-                boxShadow: palette.softShadow,
-              ),
-              padding: EdgeInsets.only(
-                left: Tokens.spaceMd,
-                right: Tokens.spaceMd,
-                top: insets.top + Tokens.spaceSm,
-                bottom: Tokens.spaceSm,
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pop(),
-                        borderless: true,
-                        rippleColor: Colors.white,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            AppIcons.arrowLeft,
-                            size: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          stop?.name ?? 'Stop',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: Tokens.fontXl,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      AppPressable(
-                        onPressed: () => Navigator.of(context).pushNamed(
-                          Routes.map,
-                          arguments: MapArgs(stopId: key),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Tokens.spaceSm,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0x33FFFFFF),
-                            borderRadius: BorderRadius.circular(
-                              Tokens.radiusFull,
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(AppIcons.map, size: 16, color: Colors.white),
-                              SizedBox(width: 4),
-                              Text(
-                                'View on Map',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: Tokens.fontSm,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: Tokens.spaceSm),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Lines serving this stop',
-                      style: TextStyle(
-                        fontSize: Tokens.fontSm,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xE6FFFFFF),
-                      ),
-                    ),
-                  ),
-                ],
+            AppPageHeader(
+              title: stop?.name ?? 'Stop',
+              subtitle:
+                  '${lines.length} ${lines.length == 1 ? 'line' : 'lines'} serving this stop',
+              onBack: () => Navigator.of(context).pop(),
+              bottomRadius: 36,
+              trailing: AppGlassButton(
+                icon: AppIcons.map,
+                tooltip: 'View on map',
+                size: 38,
+                iconSize: 20,
+                onPressed: () => Navigator.of(context).pushNamed(
+                  Routes.map,
+                  arguments: MapArgs(stopId: key, title: stop?.name),
+                ),
               ),
             ),
-
             Expanded(
               child: lines.isEmpty
                   ? const EmptyState(
-                      icon: Icons.directions_bus_rounded,
-                      message: 'No lines found for this stop.',
+                      icon: AppIcons.bus,
+                      title: 'No lines found',
+                      message: 'No bundled route currently lists this stop.',
                     )
-                  : ListView.builder(
+                  : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.screen,
                         Tokens.spaceMd,
@@ -149,7 +130,10 @@ class _StopDetailScreenState extends ConsumerState<StopDetailScreen> {
                         Tokens.spaceXl,
                       ),
                       itemCount: lines.length,
-                      itemBuilder: (context, i) => _LineCard(route: lines[i]),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: Tokens.spaceSm),
+                      itemBuilder: (context, index) =>
+                          _LineCard(route: lines[index]),
                     ),
             ),
           ],
@@ -175,7 +159,8 @@ class _LineCard extends StatelessWidget {
     );
 
     return AppCard(
-      margin: const EdgeInsets.only(bottom: Tokens.spaceSm),
+      radius: Tokens.shapeXl,
+      elevated: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -184,18 +169,20 @@ class _LineCard extends StatelessWidget {
               Routes.routeDetail,
               arguments: RouteDetailArgs(routeId: route.id, color: route.color),
             ),
+            borderRadius: BorderRadius.circular(Tokens.shapeLg),
             child: Row(
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(Tokens.radiusMd),
+                    color: color.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(Tokens.shapeMd),
+                    border: Border.all(color: color.withValues(alpha: .30)),
                   ),
                   child: BusIcon(
                     category: route.category,
-                    size: 24,
+                    size: 26,
                     color: color,
                   ),
                 ),
@@ -206,12 +193,15 @@ class _LineCard extends StatelessWidget {
                     children: [
                       Text(
                         route.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: Tokens.fontBase,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: palette.text,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         route.stationAddress,
                         maxLines: 1,
@@ -233,13 +223,23 @@ class _LineCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Tokens.spaceMd),
-          Text(
-            'Next departures',
-            style: TextStyle(
-              fontSize: Tokens.fontSm,
-              fontWeight: FontWeight.w700,
-              color: palette.textSecondary,
-            ),
+          Row(
+            children: [
+              Icon(AppIcons.clock, size: 14, color: palette.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Next departures',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: Tokens.fontSm,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: Tokens.spaceSm),
           Wrap(
@@ -251,34 +251,32 @@ class _LineCard extends StatelessWidget {
                       'No more buses today',
                       style: TextStyle(
                         fontSize: Tokens.fontSm,
+                        fontWeight: FontWeight.w600,
                         color: palette.textSecondary,
                       ),
                     ),
                   ]
-                : departures
-                      .map(
-                        (d) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Tokens.spaceSm,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(
-                              Tokens.radiusSm,
-                            ),
-                          ),
-                          child: Text(
-                            d.display,
-                            style: TextStyle(
-                              fontSize: Tokens.fontSm,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
+                : [
+                    for (final departure in departures)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Tokens.spaceSm,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(Tokens.shapePill),
+                        ),
+                        child: Text(
+                          departure.display,
+                          style: TextStyle(
+                            fontSize: Tokens.fontSm,
+                            fontWeight: FontWeight.w800,
+                            color: palette.text,
                           ),
                         ),
-                      )
-                      .toList(),
+                      ),
+                  ],
           ),
         ],
       ),
